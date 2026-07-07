@@ -1,4 +1,4 @@
-import { fetchTrades } from "../api";
+import { fetchTrades, fmtTs } from "../api";
 import { Empty, ErrorBox, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
 
@@ -16,7 +16,7 @@ export function Trades() {
       <tbody>
         {[...data].reverse().map((t, i) => (
           <tr key={i}>
-            <td>{t.ts}</td>
+            <td>{fmtTs(t.ts)}</td>
             <td>{t.symbol}</td>
             <td className={t.side === "buy" ? "good" : "bad"}>
               {t.side === "buy" ? "買入" : "平倉"}

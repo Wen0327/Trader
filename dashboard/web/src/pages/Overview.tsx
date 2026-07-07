@@ -1,7 +1,7 @@
 import {
   Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { fetchEquity, fetchStatus } from "../api";
+import { fetchEquity, fetchStatus, fmtTs } from "../api";
 import { Card, Cards } from "../components/Card";
 import { Empty, ErrorBox, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
@@ -25,7 +25,7 @@ export function Overview() {
           tone={s.kill_switch ? "bad" : "good"}
         />
         <Card label="持倉數" value={String(positions.length)} />
-        <Card label="最後更新" value={s.updated_at ?? "—"} tone="small" />
+        <Card label="最後更新" value={fmtTs(s.updated_at)} tone="small" />
       </Cards>
 
       <h2>權益曲線</h2>

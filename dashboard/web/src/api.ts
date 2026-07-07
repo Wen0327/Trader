@@ -1,5 +1,8 @@
 const BASE = "http://localhost:8787";
 
+/** log 時間戳 "2026-07-07 16:00:50,272" → "2026-07-07 16:00:50" */
+export const fmtTs = (ts: string | null) => ts?.split(",")[0] ?? "—";
+
 export type Status = {
   equity: number | null;
   kill_switch: boolean | null;
