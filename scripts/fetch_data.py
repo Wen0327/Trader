@@ -9,7 +9,7 @@ from data.binance_feed import fetch_ohlcv, save
 
 SYMBOLS = ["BTC/USDT", "ETH/USDT"]
 TIMEFRAME = "1d"
-SINCE = "2024-07-01"  # 過去兩年
+SINCE = "2017-09-01"  # 幣安上線初期起,涵蓋多輪牛熊週期
 
 if __name__ == "__main__":
     for symbol in SYMBOLS:
