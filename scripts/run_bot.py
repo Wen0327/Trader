@@ -18,16 +18,35 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from data.binance_feed import fetch_ohlcv
+from dataclasses import dataclass
+
+from data import binance_feed, yahoo_feed
 from execution.binance_broker import BinanceBroker
 from execution.portfolio import Portfolio
 from risk.manager import RiskConfig, RiskManager, RiskViolation
 from strategy.base import Strategy
 from strategy.donchian import DonchianBreakout
+from strategy.regime import RegimeFilter
 
-# TSLAB 已移出:TSLA 15 年驗證 Donchian 無 edge(1/21 勝 B&H,
-# scripts/validate_tsla.py)。美股標的須通過各自驗證才可加入。
-SYMBOLS = ["BTC/USDT", "ETH/USDT"]
+
+@dataclass(frozen=True)
+class SymbolConfig:
+    strategy: Strategy
+    signal_ticker: str | None = None  # None = 用幣安自身 K 線;否則用 Yahoo 正股代理
+    tradable: bool = True             # False = 監控模式:只算訊號寫日誌,不下單
+
+
+# 每檔標的須通過各自的長歷史驗證(見 scripts/validate_*.py)才可列入。
+# TSLAB 已否決:TSLA 15 年 Donchian 無 edge(1/21)。
+# QQQB:Regime200 於 QQQ 25 年驗證通過(8/9),testnet 無此交易對 →
+#       監控模式,待 --live 實盤試點時轉 tradable。
+SYMBOL_CONFIGS: dict[str, SymbolConfig] = {
+    "BTC/USDT": SymbolConfig(strategy=DonchianBreakout(55, 20)),
+    "ETH/USDT": SymbolConfig(strategy=DonchianBreakout(55, 20)),
+    "QQQB/USDT": SymbolConfig(
+        strategy=RegimeFilter(200), signal_ticker="QQQ", tradable=False
+    ),
+}
 PER_POSITION_PCT = 0.10   # 每個標的目標倉位 = 權益 10%(符合單筆訂單上限)
 LOOP_INTERVAL = 3600      # --loop 模式下每小時檢查一次
 
@@ -44,13 +63,19 @@ logging.basicConfig(
 log = logging.getLogger("bot")
 
 
-def latest_signal(strategy: Strategy, symbol: str) -> float:
-    """抓最近 ~120 天日線,丟掉未收盤的最後一根,回傳最新訊號。"""
-    since = (datetime.now(timezone.utc) - timedelta(days=120)).strftime("%Y-%m-%d")
-    ohlcv = fetch_ohlcv(symbol, timeframe="1d", since=since)
+def latest_signal(cfg: SymbolConfig, symbol: str) -> float:
+    """抓日線、丟掉未收盤的最後一根、回傳最新訊號。
+
+    lookback 依策略需求:Regime200 需 200+ 根,Donchian 需 55+ 根。
+    """
     today = datetime.now(timezone.utc).date()
+    if cfg.signal_ticker:
+        ohlcv = yahoo_feed.fetch_ohlcv(cfg.signal_ticker, lookback_days=400)
+    else:
+        since = (datetime.now(timezone.utc) - timedelta(days=120)).strftime("%Y-%m-%d")
+        ohlcv = binance_feed.fetch_ohlcv(symbol, timeframe="1d", since=since)
     ohlcv = ohlcv[ohlcv.index.date < today]  # 只用已收盤 K 線
-    return float(strategy.generate_signals(ohlcv).iloc[-1])
+    return float(cfg.strategy.generate_signals(ohlcv).iloc[-1])
 
 
 def compute_equity(broker: BinanceBroker, portfolio: Portfolio) -> float:
@@ -62,7 +87,7 @@ def compute_equity(broker: BinanceBroker, portfolio: Portfolio) -> float:
     return equity
 
 
-def run_once(broker: BinanceBroker, risk: RiskManager, strategy: Strategy) -> None:
+def run_once(broker: BinanceBroker, risk: RiskManager) -> None:
     portfolio = Portfolio.load()
     risk.restore(portfolio.risk_state)
 
@@ -70,9 +95,15 @@ def run_once(broker: BinanceBroker, risk: RiskManager, strategy: Strategy) -> No
     risk.update_equity(equity)
     log.info(f"權益={equity:.2f} USDT, kill_switch={risk.kill_switch_active}")
 
-    for symbol in SYMBOLS:
+    for symbol, cfg in SYMBOL_CONFIGS.items():
         try:
-            signal = latest_signal(strategy, symbol)
+            signal = latest_signal(cfg, symbol)
+
+            if not cfg.tradable:
+                # 監控模式:只記錄訊號,不下單(如 QQQB 待實盤試點)
+                log.info(f"{symbol}: [監控] {cfg.strategy.name} 訊號={signal:.0f}")
+                continue
+
             pos = portfolio.get(symbol)
             price = broker.get_price(symbol)
             log.info(f"{symbol}: 訊號={signal:.0f}, 持倉={pos.amount}, 價格={price:.2f}")
@@ -120,13 +151,16 @@ if __name__ == "__main__":
     broker = BinanceBroker(testnet=True)
     assert broker.testnet, "bot 目前只允許在 testnet 執行"
     risk = RiskManager(RiskConfig())
-    strategy = DonchianBreakout(entry_n=55, exit_n=20)
-    log.info(f"Bot 啟動 (testnet, 策略={strategy.name}, 標的={SYMBOLS})")
+    desc = ", ".join(
+        f"{s}:{c.strategy.name}{'' if c.tradable else '[監控]'}"
+        for s, c in SYMBOL_CONFIGS.items()
+    )
+    log.info(f"Bot 啟動 (testnet, {desc})")
 
     if args.loop:
         while True:
-            run_once(broker, risk, strategy)
+            run_once(broker, risk)
             log.info(f"休眠 {LOOP_INTERVAL}s...")
             time.sleep(LOOP_INTERVAL)
     else:
-        run_once(broker, risk, strategy)
+        run_once(broker, risk)
