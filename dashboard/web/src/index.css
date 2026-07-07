@@ -1,0 +1,2 @@
+/* 全域樣式集中在 App.css,此檔僅保留最小 reset */
+html { -webkit-font-smoothing: antialiased; }
