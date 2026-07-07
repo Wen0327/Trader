@@ -73,8 +73,28 @@ def scan() -> dict:
     }
 
 
+def enrich_with_news(report: dict) -> int:
+    """movers + BTC/ETH 附上新聞情緒;全部標題存檔累積。回傳新增存檔筆數。"""
+    from data.news_feed import archive, fetch_news
+
+    added = 0
+    for m in report["movers"]:
+        news = fetch_news(m["symbol"])
+        m["sentiment"] = news["sentiment"]
+        m["headlines"] = [h["title"] for h in news["headlines"][:2]]
+        added += archive(m["symbol"], news)
+
+    report["crypto_sentiment"] = {}
+    for sym in ["BTC/USDT", "ETH/USDT"]:
+        news = fetch_news(sym)
+        report["crypto_sentiment"][sym] = news["sentiment"]
+        added += archive(sym, news)
+    return added
+
+
 if __name__ == "__main__":
     report = scan()
+    archived = enrich_with_news(report)
 
     REPORTS_DIR.mkdir(exist_ok=True)
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -84,11 +104,21 @@ if __name__ == "__main__":
     movers = report["movers"]
     if movers:
         top = ", ".join(
-            f"{m['symbol'].split('/')[0]} ({m['change_pct']:+.1f}%)"
+            f"{m['symbol'].split('/')[0]} ({m['change_pct']:+.1f}%"
+            + (f", 情緒 {m['sentiment']:+.2f}" if m.get("sentiment") is not None else "")
+            + ")"
             for m in movers[:3]
         )
         print(f"bStocks Movers: {len(movers)} 檔符合條件。Top: {top}")
+        for m in movers[:3]:
+            for h in m.get("headlines", []):
+                print(f"    {m['symbol'].split('/')[0]}: {h}")
     else:
         print(f"bStocks Movers: 今日無標的符合條件"
               f"(|漲跌|>{MIN_ABS_CHANGE_PCT}%, 量>{MIN_QUOTE_VOLUME:,} USDT)")
+    cs = report.get("crypto_sentiment", {})
+    print(f"Crypto 情緒: " + ", ".join(
+        f"{k.split('/')[0]} {v:+.2f}" if v is not None else f"{k.split('/')[0]} n/a"
+        for k, v in cs.items()))
+    print(f"新聞存檔: +{archived} 筆")
     print(f"完整報告: {out}")
