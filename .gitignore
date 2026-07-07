@@ -1,0 +1,18 @@
+# 環境與密鑰 — 絕對不能進版本庫
+.env
+*.key
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 數據與輸出(通常不進 git,體積大且可重新生成)
+storage/
+reports/
+
+# 編輯器 / 系統
+.DS_Store
+.idea/
+.vscode/
