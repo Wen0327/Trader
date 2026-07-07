@@ -22,10 +22,11 @@ from data.binance_feed import fetch_ohlcv
 from execution.binance_broker import BinanceBroker
 from execution.portfolio import Portfolio
 from risk.manager import RiskConfig, RiskManager, RiskViolation
-from strategy.momentum import SmaCross
+from strategy.base import Strategy
+from strategy.donchian import DonchianBreakout
 
-# TSLAB(Tesla bStock)於 2026-06-11 上市,SMA 20/60 需 60 根日線,
-# 約 2026-08-10 前訊號恆為 0(策略對 NaN 慢線回傳 0),屆時自動開始交易。
+# TSLAB(Tesla bStock)於 2026-06-11 上市,Donchian 進場需 55 根日線,
+# 約 2026-08-05 前訊號恆為 0(通道未形成時策略回傳 0),屆時自動開始交易。
 # 其餘 bStocks 待 testnet 支援後再加入。
 SYMBOLS = ["BTC/USDT", "ETH/USDT", "TSLAB/USDT"]
 PER_POSITION_PCT = 0.10   # 每個標的目標倉位 = 權益 10%(符合單筆訂單上限)
@@ -44,7 +45,7 @@ logging.basicConfig(
 log = logging.getLogger("bot")
 
 
-def latest_signal(strategy: SmaCross, symbol: str) -> float:
+def latest_signal(strategy: Strategy, symbol: str) -> float:
     """抓最近 ~120 天日線,丟掉未收盤的最後一根,回傳最新訊號。"""
     since = (datetime.now(timezone.utc) - timedelta(days=120)).strftime("%Y-%m-%d")
     ohlcv = fetch_ohlcv(symbol, timeframe="1d", since=since)
@@ -62,7 +63,7 @@ def compute_equity(broker: BinanceBroker, portfolio: Portfolio) -> float:
     return equity
 
 
-def run_once(broker: BinanceBroker, risk: RiskManager, strategy: SmaCross) -> None:
+def run_once(broker: BinanceBroker, risk: RiskManager, strategy: Strategy) -> None:
     portfolio = Portfolio.load()
     risk.restore(portfolio.risk_state)
 
@@ -120,7 +121,7 @@ if __name__ == "__main__":
     broker = BinanceBroker(testnet=True)
     assert broker.testnet, "bot 目前只允許在 testnet 執行"
     risk = RiskManager(RiskConfig())
-    strategy = SmaCross(fast=20, slow=60)
+    strategy = DonchianBreakout(entry_n=55, exit_n=20)
     log.info(f"Bot 啟動 (testnet, 策略={strategy.name}, 標的={SYMBOLS})")
 
     if args.loop:
