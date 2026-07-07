@@ -89,6 +89,9 @@ def enrich_with_news(report: dict) -> int:
         news = fetch_news(sym)
         report["crypto_sentiment"][sym] = news["sentiment"]
         added += archive(sym, news)
+
+    from data.fear_greed import fetch_latest
+    report["fear_greed"] = fetch_latest()
     return added
 
 

@@ -142,6 +142,12 @@ def status():
     }
 
 
+@app.get("/api/fng")
+def fear_greed():
+    from data.fear_greed import fetch_latest
+    return fetch_latest() or {"value": None, "label": None}
+
+
 @app.get("/api/equity")
 def equity_history():
     return log_parser.equity_points()

@@ -55,7 +55,10 @@ async function get<T>(path: string): Promise<T> {
   return res.json();
 }
 
+export type FearGreed = { value: number | null; label: string | null };
+
 export const fetchStatus = () => get<Status>("/api/status");
+export const fetchFng = () => get<FearGreed>("/api/fng");
 export const fetchEquity = () => get<EquityPoint[]>("/api/equity");
 export const fetchTrades = () => get<Trade[]>("/api/trades");
 export const fetchScan = () => get<Scan>("/api/scan");

@@ -1,7 +1,7 @@
 import {
   Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { fetchEquity, fetchStatus, fmtTs } from "../api";
+import { fetchEquity, fetchFng, fetchStatus, fmtTs } from "../api";
 import { Card, Cards } from "../components/Card";
 import { Empty, ErrorBox, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
@@ -9,6 +9,7 @@ import { useLoad } from "../hooks/useLoad";
 export function Overview() {
   const status = useLoad(fetchStatus);
   const equity = useLoad(fetchEquity);
+  const fng = useLoad(fetchFng);
 
   if (status.error || equity.error) return <ErrorBox msg={(status.error ?? equity.error)!} />;
   if (!status.data || !equity.data) return <Loading />;
@@ -25,6 +26,12 @@ export function Overview() {
           tone={s.kill_switch ? "bad" : "good"}
         />
         <Card label="持倉數" value={String(positions.length)} />
+        <Card
+          label="恐懼貪婪指數"
+          value={fng.data?.value != null ? `${fng.data.value} ${fng.data.label}` : "—"}
+          tone={fng.data?.value != null && fng.data.value < 40 ? "bad"
+            : fng.data?.value != null && fng.data.value > 60 ? "good" : undefined}
+        />
         <Card label="最後更新" value={fmtTs(s.updated_at)} tone="small" />
       </Cards>
 
