@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 
 
 class RiskViolation(Exception):
@@ -29,6 +29,21 @@ class RiskManager:
     _day_start_equity: float | None = None
     _day: date | None = None
     _killed: bool = False
+
+    def to_dict(self) -> dict:
+        """序列化當日狀態,供 bot 重啟後恢復。"""
+        return {
+            "day": self._day.isoformat() if self._day else None,
+            "day_start_equity": self._day_start_equity,
+            "killed": self._killed,
+        }
+
+    def restore(self, state: dict) -> None:
+        if not state or not state.get("day"):
+            return
+        self._day = datetime.fromisoformat(state["day"]).date()
+        self._day_start_equity = state.get("day_start_equity")
+        self._killed = bool(state.get("killed", False))
 
     def update_equity(self, equity: float) -> None:
         """每次循環回報最新帳戶權益(USDT 計價)。"""

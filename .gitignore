@@ -11,6 +11,7 @@ __pycache__/
 # 數據與輸出(通常不進 git,體積大且可重新生成)
 storage/
 reports/
+logs/
 
 # 編輯器 / 系統
 .DS_Store

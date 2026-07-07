@@ -43,3 +43,7 @@ class Broker(ABC):
 
     @abstractmethod
     def cancel_order(self, order_id: str, symbol: str) -> None: ...
+
+    @abstractmethod
+    def amount_to_precision(self, symbol: str, amount: float) -> float:
+        """把數量修整到交易所允許的精度。"""

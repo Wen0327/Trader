@@ -48,6 +48,9 @@ class BinanceBroker(Broker):
     def cancel_order(self, order_id: str, symbol: str) -> None:
         self._ex.cancel_order(order_id, symbol)
 
+    def amount_to_precision(self, symbol: str, amount: float) -> float:
+        return float(self._ex.amount_to_precision(symbol, amount))
+
     def _to_result(self, order: dict, symbol: str) -> OrderResult:
         # 市價單回應可能不含均價,補查一次訂單狀態
         if order.get("average") is None and order.get("id"):
