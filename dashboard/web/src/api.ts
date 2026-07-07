@@ -1,7 +1,11 @@
 const BASE = "http://localhost:8787";
 
-/** log 時間戳 "2026-07-07 16:00:50,272" → "2026-07-07 16:00:50" */
-export const fmtTs = (ts: string | null) => ts?.split(",")[0] ?? "—";
+/** 任意時間戳 → "YYYY-MM-DD HH:mm:ss"。
+ *  支援 log 格式 "…16:00:50,272" 與 ISO "…T13:00:52.123456+00:00"。 */
+export const fmtTs = (ts: string | null | undefined) => {
+  const m = ts?.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})/);
+  return m ? `${m[1]} ${m[2]}` : ts ?? "—";
+};
 
 export type Status = {
   equity: number | null;

@@ -1,4 +1,4 @@
-import { fetchScan } from "../api";
+import { fetchScan, fmtTs } from "../api";
 import { ErrorBox, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
 
@@ -9,7 +9,7 @@ export function Scanner() {
 
   return (
     <>
-      <p className="muted">掃描時間:{data.scanned_at}</p>
+      <p className="muted">掃描時間:{fmtTs(data.scanned_at)} UTC</p>
       {data.crypto_sentiment && (
         <p>
           Crypto 情緒:

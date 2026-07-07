@@ -30,7 +30,7 @@ export function Overview() {
 
       <h2>權益曲線</h2>
       <ResponsiveContainer width="100%" height={260}>
-        <LineChart data={equity.data}>
+        <LineChart data={equity.data.map((p) => ({ ...p, ts: fmtTs(p.ts) }))}>
           <XAxis dataKey="ts" hide />
           <YAxis domain={["auto", "auto"]} width={70} />
           <Tooltip />
