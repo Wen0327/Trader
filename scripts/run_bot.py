@@ -24,7 +24,10 @@ from execution.portfolio import Portfolio
 from risk.manager import RiskConfig, RiskManager, RiskViolation
 from strategy.momentum import SmaCross
 
-SYMBOLS = ["BTC/USDT", "ETH/USDT"]
+# TSLAB(Tesla bStock)於 2026-06-11 上市,SMA 20/60 需 60 根日線,
+# 約 2026-08-10 前訊號恆為 0(策略對 NaN 慢線回傳 0),屆時自動開始交易。
+# 其餘 bStocks 待 testnet 支援後再加入。
+SYMBOLS = ["BTC/USDT", "ETH/USDT", "TSLAB/USDT"]
 PER_POSITION_PCT = 0.10   # 每個標的目標倉位 = 權益 10%(符合單筆訂單上限)
 LOOP_INTERVAL = 3600      # --loop 模式下每小時檢查一次
 
