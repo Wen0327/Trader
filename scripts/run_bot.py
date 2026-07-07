@@ -25,10 +25,9 @@ from risk.manager import RiskConfig, RiskManager, RiskViolation
 from strategy.base import Strategy
 from strategy.donchian import DonchianBreakout
 
-# TSLAB(Tesla bStock)於 2026-06-11 上市,Donchian 進場需 55 根日線,
-# 約 2026-08-05 前訊號恆為 0(通道未形成時策略回傳 0),屆時自動開始交易。
-# 其餘 bStocks 待 testnet 支援後再加入。
-SYMBOLS = ["BTC/USDT", "ETH/USDT", "TSLAB/USDT"]
+# TSLAB 已移出:TSLA 15 年驗證 Donchian 無 edge(1/21 勝 B&H,
+# scripts/validate_tsla.py)。美股標的須通過各自驗證才可加入。
+SYMBOLS = ["BTC/USDT", "ETH/USDT"]
 PER_POSITION_PCT = 0.10   # 每個標的目標倉位 = 權益 10%(符合單筆訂單上限)
 LOOP_INTERVAL = 3600      # --loop 模式下每小時檢查一次
 
