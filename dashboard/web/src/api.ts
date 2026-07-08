@@ -7,7 +7,7 @@ export const fmtTs = (ts: string | null | undefined) => {
   return m ? `${m[1]} ${m[2]}` : ts ?? "—";
 };
 
-export type Status = {
+export type TrackStatus = {
   equity: number | null;
   kill_switch: boolean | null;
   updated_at: string | null;
@@ -15,12 +15,15 @@ export type Status = {
   risk_state: { day?: string; day_start_equity?: number; killed?: boolean };
 };
 
+export type Status = TrackStatus & { futures: TrackStatus };
+
 export type EquityPoint = { ts: string; equity: number };
 
 export type Trade = {
   ts: string;
+  track: "spot" | "futures";
   symbol: string;
-  side: "buy" | "sell";
+  side: "buy" | "sell" | "short" | "cover";
   amount: number;
   price: number;
   pnl_pct: number | null;

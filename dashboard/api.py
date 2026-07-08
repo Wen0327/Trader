@@ -25,15 +25,18 @@ sys.path.insert(0, str(ROOT))
 
 
 class BotLogParser:
+    """解析 bot.log。現貨與合約([合約] 前綴)兩軌都認得。"""
+
     EQUITY_RE = re.compile(
-        r"^(?P<ts>[\d-]+ [\d:,]+) INFO 權益=(?P<equity>[\d.]+) USDT, "
-        r"kill_switch=(?P<ks>\w+)"
+        r"^(?P<ts>[\d-]+ [\d:,]+) INFO (?P<track>\[合約\] )?權益=(?P<equity>[\d.]+) "
+        r"USDT, kill_switch=(?P<ks>\w+)"
     )
     TRADE_RE = re.compile(
-        r"^(?P<ts>[\d-]+ [\d:,]+) INFO (?P<symbol>\S+): "
-        r"(?P<action>買入|平倉) (?P<amount>[\d.]+) @ (?P<price>[\d.]+)"
+        r"^(?P<ts>[\d-]+ [\d:,]+) INFO (?P<track>\[合約\] )?(?P<symbol>\S+): "
+        r"(?P<action>買入|平倉|開空|回補) (?P<amount>[\d.]+) @ (?P<price>[\d.]+)"
         r"(?: 損益 (?P<pnl>[+-][\d.]+)%)?"
     )
+    SIDE = {"買入": "buy", "平倉": "sell", "開空": "short", "回補": "cover"}
 
     def __init__(self, log_path: Path):
         self._path = log_path
@@ -41,16 +44,20 @@ class BotLogParser:
     def _lines(self) -> list[str]:
         return self._path.read_text().splitlines() if self._path.exists() else []
 
-    def equity_points(self) -> list[dict]:
+    @staticmethod
+    def _track(m: re.Match) -> str:
+        return "futures" if m["track"] else "spot"
+
+    def equity_points(self, track: str = "spot") -> list[dict]:
         return [
             {"ts": m["ts"], "equity": float(m["equity"])}
             for line in self._lines()
-            if (m := self.EQUITY_RE.match(line))
+            if (m := self.EQUITY_RE.match(line)) and self._track(m) == track
         ]
 
-    def latest_equity(self) -> dict | None:
+    def latest_equity(self, track: str = "spot") -> dict | None:
         for line in reversed(self._lines()):
-            if m := self.EQUITY_RE.match(line):
+            if (m := self.EQUITY_RE.match(line)) and self._track(m) == track:
                 return {
                     "equity": float(m["equity"]),
                     "kill_switch": m["ks"] == "True",
@@ -62,8 +69,9 @@ class BotLogParser:
         return [
             {
                 "ts": m["ts"],
-                "symbol": m["symbol"],
-                "side": "buy" if m["action"] == "買入" else "sell",
+                "track": self._track(m),
+                "symbol": m["symbol"].rstrip(":"),
+                "side": self.SIDE[m["action"]],
                 "amount": float(m["amount"]),
                 "price": float(m["price"]),
                 "pnl_pct": float(m["pnl"]) if m["pnl"] else None,
@@ -117,6 +125,7 @@ class BacktestService:
 
 log_parser = BotLogParser(ROOT / "logs" / "bot.log")
 state_store = StateStore(ROOT / "storage" / "bot_state.json")
+futures_state_store = StateStore(ROOT / "storage" / "futures_state.json")
 scan_store = ScanStore(ROOT / "reports")
 backtest_service = BacktestService()
 
@@ -129,10 +138,9 @@ app.add_middleware(
 )
 
 
-@app.get("/api/status")
-def status():
-    latest = log_parser.latest_equity() or {}
-    state = state_store.read()
+def _track_status(track: str, store: StateStore) -> dict:
+    latest = log_parser.latest_equity(track) or {}
+    state = store.read()
     return {
         "equity": latest.get("equity"),
         "kill_switch": latest.get("kill_switch"),
@@ -140,6 +148,13 @@ def status():
         "positions": state.get("positions", {}),
         "risk_state": state.get("risk_state", {}),
     }
+
+
+@app.get("/api/status")
+def status():
+    spot = _track_status("spot", state_store)
+    spot["futures"] = _track_status("futures", futures_state_store)
+    return spot
 
 
 @app.get("/api/fng")

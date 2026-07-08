@@ -11,16 +11,15 @@ export function Trades() {
   return (
     <table>
       <thead>
-        <tr><th>時間</th><th>標的</th><th>方向</th><th>數量</th><th>價格</th><th>損益</th></tr>
+        <tr><th>時間</th><th>軌道</th><th>標的</th><th>方向</th><th>數量</th><th>價格</th><th>損益</th></tr>
       </thead>
       <tbody>
         {[...data].reverse().map((t, i) => (
           <tr key={i}>
             <td>{fmtTs(t.ts)}</td>
+            <td className="muted">{t.track === "futures" ? "合約" : "現貨"}</td>
             <td>{t.symbol}</td>
-            <td className={t.side === "buy" ? "good" : "bad"}>
-              {t.side === "buy" ? "買入" : "平倉"}
-            </td>
+            <td className={SIDE_TONE[t.side]}>{SIDE_LABEL[t.side]}</td>
             <td>{t.amount}</td>
             <td>{t.price.toLocaleString()}</td>
             <td className={t.pnl_pct == null ? "" : t.pnl_pct >= 0 ? "good" : "bad"}>
@@ -32,3 +31,6 @@ export function Trades() {
     </table>
   );
 }
+
+const SIDE_LABEL = { buy: "買入", sell: "平倉", short: "開空", cover: "回補" } as const;
+const SIDE_TONE = { buy: "good", sell: "bad", short: "bad", cover: "good" } as const;

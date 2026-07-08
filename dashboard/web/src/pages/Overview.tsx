@@ -45,21 +45,47 @@ export function Overview() {
         </LineChart>
       </ResponsiveContainer>
 
-      <h2>持倉</h2>
+      <h2>現貨持倉</h2>
       {positions.length === 0 ? (
         <Empty msg="空手(等待 Donchian 55 日高突破訊號)" />
       ) : (
-        <table>
-          <thead><tr><th>標的</th><th>數量</th><th>進場價</th></tr></thead>
-          <tbody>
-            {positions.map(([sym, p]) => (
-              <tr key={sym}>
-                <td>{sym}</td><td>{p.amount}</td><td>{p.entry_price}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <PositionTable rows={positions} />
+      )}
+
+      <h2>合約軌道(週期空單,testnet 紙上驗證)</h2>
+      <Cards>
+        <Card label="合約權益 (USDT)" value={s.futures.equity?.toFixed(2) ?? "—"} />
+        <Card
+          label="合約 Kill Switch"
+          value={s.futures.kill_switch == null ? "—" : s.futures.kill_switch ? "觸發" : "正常"}
+          tone={s.futures.kill_switch ? "bad" : "good"}
+        />
+        <Card label="空單持倉數" value={String(Object.keys(s.futures.positions).length)} />
+      </Cards>
+      {Object.keys(s.futures.positions).length === 0 ? (
+        <Empty msg="無空單(等待:週期窗口內 + 破55日低 + 未跌破50%地板)" />
+      ) : (
+        <PositionTable rows={Object.entries(s.futures.positions)} />
       )}
     </>
+  );
+}
+
+function PositionTable({ rows }: {
+  rows: [string, { amount: number; entry_price: number }][];
+}) {
+  return (
+    <table>
+      <thead><tr><th>標的</th><th>數量</th><th>進場價</th></tr></thead>
+      <tbody>
+        {rows.map(([sym, p]) => (
+          <tr key={sym}>
+            <td>{sym}</td>
+            <td className={p.amount < 0 ? "bad" : ""}>{p.amount}</td>
+            <td>{p.entry_price}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
