@@ -24,27 +24,33 @@ class Portfolio:
     positions: dict[str, Position] = field(default_factory=dict)
     risk_state: dict = field(default_factory=dict)
 
+    _path: Path = STATE_PATH
+
     @classmethod
-    def load(cls) -> "Portfolio":
-        if not STATE_PATH.exists():
-            return cls()
-        data = json.loads(STATE_PATH.read_text())
+    def load(cls, path: Path = STATE_PATH) -> "Portfolio":
+        if not path.exists():
+            p = cls()
+            p._path = path
+            return p
+        data = json.loads(path.read_text())
         positions = {
             sym: Position(**pos) for sym, pos in data.get("positions", {}).items()
         }
-        return cls(positions=positions, risk_state=data.get("risk_state", {}))
+        p = cls(positions=positions, risk_state=data.get("risk_state", {}))
+        p._path = path
+        return p
 
     def save(self) -> None:
-        STATE_PATH.parent.mkdir(exist_ok=True)
+        self._path.parent.mkdir(exist_ok=True)
         data = {
             "positions": {
                 sym: {"amount": p.amount, "entry_price": p.entry_price}
                 for sym, p in self.positions.items()
-                if p.amount > 0
+                if p.amount != 0
             },
             "risk_state": self.risk_state,
         }
-        STATE_PATH.write_text(json.dumps(data, indent=2))
+        self._path.write_text(json.dumps(data, indent=2))
 
     def get(self, symbol: str) -> Position:
         return self.positions.get(symbol, Position())

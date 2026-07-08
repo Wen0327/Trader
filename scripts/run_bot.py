@@ -22,11 +22,15 @@ from dataclasses import dataclass
 
 from data import binance_feed, yahoo_feed
 from execution.binance_broker import BinanceBroker
-from execution.portfolio import Portfolio
+from execution.binance_futures_broker import BinanceFuturesTestnetBroker
+from execution.portfolio import STATE_PATH, Portfolio
 from risk.manager import RiskConfig, RiskManager, RiskViolation
 from strategy.base import Strategy
+from strategy.cycle_short import CycleShort
 from strategy.donchian import DonchianBreakout
 from strategy.regime import RegimeFilter
+
+FUTURES_STATE_PATH = STATE_PATH.parent / "futures_state.json"
 
 
 @dataclass(frozen=True)
@@ -49,6 +53,13 @@ SYMBOL_CONFIGS: dict[str, SymbolConfig] = {
 }
 PER_POSITION_PCT = 0.10   # 每個標的目標倉位 = 權益 10%(符合單筆訂單上限)
 LOOP_INTERVAL = 3600      # --loop 模式下每小時檢查一次
+
+# 週期空單軌道(合約 testnet 紙上驗證,1x 槓桿硬鎖,2026-10 窗口結束覆盤)
+# 訊號用現貨長歷史計算,執行在 USDT-M 永續。
+FUTURES_SHORT_CONFIGS: dict[str, dict] = {
+    "BTC/USDT:USDT": {"signal_symbol": "BTC/USDT", "strategy": CycleShort()},
+    "ETH/USDT:USDT": {"signal_symbol": "ETH/USDT", "strategy": CycleShort()},
+}
 
 LOGS_DIR = Path(__file__).resolve().parent.parent / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
@@ -143,6 +154,61 @@ def run_once(broker: BinanceBroker, risk: RiskManager) -> None:
     portfolio.save()
 
 
+def cycle_short_signal(strategy: Strategy, signal_symbol: str) -> float:
+    """週期空單訊號:需 365+ 根現貨日線,只用已收盤 K 線。"""
+    since = (datetime.now(timezone.utc) - timedelta(days=430)).strftime("%Y-%m-%d")
+    ohlcv = binance_feed.fetch_ohlcv(signal_symbol, timeframe="1d", since=since)
+    today = datetime.now(timezone.utc).date()
+    ohlcv = ohlcv[ohlcv.index.date < today]
+    return float(strategy.generate_signals(ohlcv).iloc[-1])
+
+
+def run_futures_once(fbroker: BinanceFuturesTestnetBroker, frisk: RiskManager) -> None:
+    """合約空單軌道:與現貨多單完全獨立記帳。"""
+    portfolio = Portfolio.load(FUTURES_STATE_PATH)
+    frisk.restore(portfolio.risk_state)
+    equity = fbroker.get_balance("USDT")
+    frisk.update_equity(equity)
+    log.info(f"[合約] 權益={equity:.2f} USDT, kill_switch={frisk.kill_switch_active}")
+
+    for symbol, cfg in FUTURES_SHORT_CONFIGS.items():
+        try:
+            signal = cycle_short_signal(cfg["strategy"], cfg["signal_symbol"])
+            pos = portfolio.get(symbol)
+            price = fbroker.get_price(symbol)
+            log.info(f"[合約] {symbol}: 訊號={signal:.0f}, 持倉={pos.amount}, "
+                     f"價格={price:.2f}")
+
+            if signal < 0 and pos.amount == 0:
+                target_value = equity * PER_POSITION_PCT
+                amount = fbroker.amount_to_precision(symbol, target_value / price)
+                # 開空對風控而言同樣是「開新倉」,受 kill switch 與額度限制
+                frisk.check_order(side="buy", order_value=amount * price,
+                                  current_position_value=0.0, equity=equity)
+                result = fbroker.market_order(symbol, "sell", amount)
+                portfolio.set(symbol, -result.filled, result.avg_price or price)
+                log.info(f"[合約] {symbol}: 開空 {result.filled} @ {result.avg_price} "
+                         f"(id={result.order_id})")
+
+            elif signal == 0 and pos.amount < 0:
+                amount = fbroker.amount_to_precision(symbol, abs(pos.amount))
+                result = fbroker.market_order(symbol, "buy", amount)
+                portfolio.clear(symbol)
+                pnl_pct = (pos.entry_price / (result.avg_price or price) - 1) * 100
+                log.info(f"[合約] {symbol}: 回補 {result.filled} @ {result.avg_price} "
+                         f"損益 {pnl_pct:+.2f}% (id={result.order_id})")
+            else:
+                log.info(f"[合約] {symbol}: 無需調倉")
+
+        except RiskViolation as e:
+            log.warning(f"[合約] {symbol}: 風控攔截 — {e}")
+        except Exception:
+            log.exception(f"[合約] {symbol}: 處理失敗(跳過,下次循環重試)")
+
+    portfolio.risk_state = frisk.to_dict()
+    portfolio.save()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--loop", action="store_true", help="常駐模式,每小時檢查")
@@ -151,16 +217,23 @@ if __name__ == "__main__":
     broker = BinanceBroker(testnet=True)
     assert broker.testnet, "bot 目前只允許在 testnet 執行"
     risk = RiskManager(RiskConfig())
+    fbroker = BinanceFuturesTestnetBroker()
+    frisk = RiskManager(RiskConfig())
     desc = ", ".join(
         f"{s}:{c.strategy.name}{'' if c.tradable else '[監控]'}"
         for s, c in SYMBOL_CONFIGS.items()
     )
-    log.info(f"Bot 啟動 (testnet, {desc})")
+    fdesc = ", ".join(f"{s}:{c['strategy'].name}" for s, c in FUTURES_SHORT_CONFIGS.items())
+    log.info(f"Bot 啟動 (testnet, {desc} | 合約: {fdesc})")
+
+    def tick():
+        run_once(broker, risk)
+        run_futures_once(fbroker, frisk)
 
     if args.loop:
         while True:
-            run_once(broker, risk)
+            tick()
             log.info(f"休眠 {LOOP_INTERVAL}s...")
             time.sleep(LOOP_INTERVAL)
     else:
-        run_once(broker, risk)
+        tick()
