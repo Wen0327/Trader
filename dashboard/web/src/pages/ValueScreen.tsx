@@ -1,9 +1,12 @@
-import { fetchValueScreen, fmtTs } from "../api";
+import { useState } from "react";
+import { fetchChart, fetchValueScreen, fmtTs } from "../api";
+import { CandleChart } from "../components/CandleChart";
 import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
 
 export function ValueScreen() {
   const { data, error } = useLoad(fetchValueScreen);
+  const [selected, setSelected] = useState<string | null>(null);
   if (error) return <ErrorBox msg={error} />;
   if (!data) return <Loading />;
 
@@ -28,7 +31,11 @@ export function ValueScreen() {
         </thead>
         <tbody>
           {data.rows.map((r) => (
-            <tr key={r.ticker} className={r.passed ? "" : "row-dim"}>
+            <tr
+              key={r.ticker}
+              className={`clickable ${r.passed ? "" : "row-dim"} ${selected === r.ticker ? "selected" : ""}`}
+              onClick={() => setSelected(r.ticker)}
+            >
               <td>{r.passed ? "✅" : ""}</td>
               <td>{r.ticker.replace(/\.TWO?$/, "")}</td>
               <td>{r.name}</td>
@@ -46,6 +53,25 @@ export function ValueScreen() {
           ))}
         </tbody>
       </table>
+
+      {selected && <TwChart ticker={selected} />}
+    </>
+  );
+}
+
+function TwChart({ ticker }: { ticker: string }) {
+  const { data, error, fetching } = useLoad(
+    () => fetchChart(ticker), [ticker], { keepPrevious: true },
+  );
+  if (error) return <ErrorBox msg={error} />;
+  if (!data) return <Loading />;
+  return (
+    <>
+      <h2>{ticker.replace(/\.TWO?$/, "")} — {data.ticker === ticker ? data.label : "載入中…"}</h2>
+      <div style={{ opacity: fetching ? 0.45 : 1, transition: "opacity 0.15s" }}>
+        <CandleChart data={data} showBreakouts={false} />
+        <p className="muted chart-legend">黃線 200MA ｜ 綠虛線 55日高 ｜ 紅虛線 20日低</p>
+      </div>
     </>
   );
 }

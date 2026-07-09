@@ -158,5 +158,7 @@ export const fetchValueScreen = () => get<ValueScreenReport>("/api/value-screen"
 export const fetchRotation = () => get<Rotation>("/api/rotation");
 export const fetchRotationTicker = (symbol: string) =>
   get<TickerSeries>(`/api/rotation/ticker?symbol=${encodeURIComponent(symbol)}`);
+export const fetchChart = (symbol: string) =>
+  get<TickerSeries>(`/api/chart?symbol=${encodeURIComponent(symbol)}`);
 export const fetchBacktest = (symbol: string) =>
   get<Backtest>(`/api/backtest?symbol=${encodeURIComponent(symbol)}`);

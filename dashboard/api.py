@@ -150,9 +150,11 @@ class RotationService:
 
     def ticker_series(self, ticker: str) -> dict:
         from data.rotation import WATCHLIST
+        from data.value_screen import UNIVERSE
         from data.yahoo_feed import fetch_ohlcv
 
-        if ticker not in WATCHLIST:
+        allowed = {**WATCHLIST, **UNIVERSE}  # 白名單:輪動觀察 + 台股價值池
+        if ticker not in allowed:
             raise KeyError(ticker)
 
         def build():
@@ -164,7 +166,7 @@ class RotationService:
             breakout = close > hi55.shift(1)  # 突破「當日之前」的 55 日高
             return {
                 "ticker": ticker,
-                "label": WATCHLIST[ticker],
+                "label": allowed[ticker],
                 "series": [
                     {"date": d.strftime("%Y-%m-%d"),
                      "open": round(float(o), 2),
@@ -288,6 +290,15 @@ def rotation_ticker(symbol: str):
         return rotation_service.ticker_series(symbol)
     except KeyError:
         raise HTTPException(404, f"{symbol} 不在觀察清單")
+
+
+@app.get("/api/chart")
+def chart(symbol: str):
+    """通用單檔 K 線(白名單:輪動觀察清單 + 台股價值池)。"""
+    try:
+        return rotation_service.ticker_series(symbol)
+    except KeyError:
+        raise HTTPException(404, f"{symbol} 不在白名單")
 
 
 @app.get("/api/value-screen")
