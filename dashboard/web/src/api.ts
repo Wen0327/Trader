@@ -144,6 +144,7 @@ export type ValueRow = {
   range_pos_20d?: number;   // 20日區間位置 0~100
   zone?: "pullback" | "mid" | "high";
   tier?: 1 | 2;             // 美股池分層:1 精華 / 2 二線
+  sector?: string;          // 板塊類別
 };
 
 export type MomentumPick = {

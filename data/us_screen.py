@@ -13,49 +13,65 @@ import yfinance as yf
 from data.value_screen import fetch_metrics  # 通用,直接複用
 
 # 精選池:各板塊龍頭 ~85 檔(靜態快照 2026-07,手動維護)
-UNIVERSE = {
-    # 巨頭/平台
-    "AAPL": "Apple", "MSFT": "Microsoft", "GOOGL": "Alphabet",
-    "AMZN": "Amazon", "META": "Meta", "NVDA": "NVIDIA", "TSLA": "Tesla",
-    "NFLX": "Netflix", "ORCL": "Oracle", "IBM": "IBM",
-    # 半導體
-    "AVGO": "Broadcom", "AMD": "AMD", "INTC": "Intel", "QCOM": "Qualcomm",
-    "TXN": "德儀", "MU": "美光", "AMAT": "應材", "LRCX": "科林",
-    "KLAC": "科磊", "TSM": "台積電ADR", "ASML": "ASML", "ANET": "Arista",
-    "SMCI": "美超微", "ARM": "Arm",
-    # 軟體
-    "CRM": "Salesforce", "ADBE": "Adobe", "NOW": "ServiceNow",
-    "INTU": "Intuit", "PLTR": "Palantir", "SNOW": "Snowflake",
-    "CRWD": "CrowdStrike", "PANW": "Palo Alto", "DDOG": "Datadog",
-    "NET": "Cloudflare", "TEAM": "Atlassian", "WDAY": "Workday", "U": "Unity",
-    # 金融
-    "JPM": "摩根大通", "BAC": "美銀", "WFC": "富國", "GS": "高盛",
-    "MS": "摩根士丹利", "BLK": "貝萊德", "V": "Visa", "MA": "Mastercard",
-    "AXP": "美國運通", "BRK-B": "波克夏B", "SCHW": "嘉信", "C": "花旗",
-    # 醫療
-    "LLY": "禮來", "UNH": "聯合健康", "JNJ": "嬌生", "ABBV": "艾伯維",
-    "MRK": "默克", "PFE": "輝瑞", "TMO": "賽默飛", "ISRG": "直覺手術",
-    "AMGN": "安進", "ABT": "亞培",
-    # 消費
-    "WMT": "沃爾瑪", "COST": "好市多", "HD": "家得寶", "MCD": "麥當勞",
-    "NKE": "Nike", "SBUX": "星巴克", "LOW": "勞氏", "PG": "寶僑",
-    "KO": "可口可樂", "PEP": "百事", "DIS": "迪士尼", "BKNG": "Booking",
-    "ABNB": "Airbnb", "UBER": "Uber",
-    # 工業/能源
-    "CAT": "開拓重工", "DE": "迪爾", "BA": "波音", "GE": "奇異",
-    "HON": "漢威", "LMT": "洛克希德", "RTX": "雷神", "UNP": "聯合太平洋",
-    "XOM": "埃克森", "CVX": "雪佛龍", "COP": "康菲",
-    # 太空
-    "SPCX": "SpaceX", "RKLB": "Rocket Lab", "ASTS": "AST SpaceMobile",
-    "LUNR": "Intuitive Machines",
-    # 能源/AI 電力
-    "CEG": "Constellation", "VST": "Vistra", "GEV": "GE Vernova",
-    "OKLO": "Oklo", "SMR": "NuScale", "CCJ": "Cameco",
-    # 其他
-    "LIN": "林德", "NEE": "新世代能源", "TMUS": "T-Mobile",
-    "PYPL": "PayPal", "COIN": "Coinbase", "MSTR": "MicroStrategy",
+SECTORS: dict[str, dict[str, str]] = {
+    "巨頭": {
+        "AAPL": "Apple", "MSFT": "Microsoft", "GOOGL": "Alphabet",
+        "AMZN": "Amazon", "META": "Meta", "NVDA": "NVIDIA", "TSLA": "Tesla",
+        "NFLX": "Netflix", "ORCL": "Oracle", "IBM": "IBM",
+    },
+    "半導體": {
+        "AVGO": "Broadcom", "AMD": "AMD", "INTC": "Intel", "QCOM": "Qualcomm",
+        "TXN": "德儀", "MU": "美光", "AMAT": "應材", "LRCX": "科林",
+        "KLAC": "科磊", "TSM": "台積電ADR", "ASML": "ASML", "ANET": "Arista",
+        "SMCI": "美超微", "ARM": "Arm",
+    },
+    "軟體": {
+        "CRM": "Salesforce", "ADBE": "Adobe", "NOW": "ServiceNow",
+        "INTU": "Intuit", "PLTR": "Palantir", "SNOW": "Snowflake",
+        "CRWD": "CrowdStrike", "PANW": "Palo Alto", "DDOG": "Datadog",
+        "NET": "Cloudflare", "TEAM": "Atlassian", "WDAY": "Workday", "U": "Unity",
+    },
+    "金融": {
+        "JPM": "摩根大通", "BAC": "美銀", "WFC": "富國", "GS": "高盛",
+        "MS": "摩根士丹利", "BLK": "貝萊德", "V": "Visa", "MA": "Mastercard",
+        "AXP": "美國運通", "BRK-B": "波克夏B", "SCHW": "嘉信", "C": "花旗",
+    },
+    "醫療": {
+        "LLY": "禮來", "UNH": "聯合健康", "JNJ": "嬌生", "ABBV": "艾伯維",
+        "MRK": "默克", "PFE": "輝瑞", "TMO": "賽默飛", "ISRG": "直覺手術",
+        "AMGN": "安進", "ABT": "亞培",
+    },
+    "消費": {
+        "WMT": "沃爾瑪", "COST": "好市多", "HD": "家得寶", "MCD": "麥當勞",
+        "NKE": "Nike", "SBUX": "星巴克", "LOW": "勞氏", "PG": "寶僑",
+        "KO": "可口可樂", "PEP": "百事", "DIS": "迪士尼", "BKNG": "Booking",
+        "ABNB": "Airbnb", "UBER": "Uber",
+    },
+    "工業": {
+        "CAT": "開拓重工", "DE": "迪爾", "BA": "波音", "GE": "奇異",
+        "HON": "漢威", "LMT": "洛克希德", "RTX": "雷神", "UNP": "聯合太平洋",
+    },
+    "能源": {
+        "XOM": "埃克森", "CVX": "雪佛龍", "COP": "康菲",
+        "CEG": "Constellation", "VST": "Vistra", "GEV": "GE Vernova",
+        "OKLO": "Oklo", "SMR": "NuScale", "CCJ": "Cameco",
+    },
+    "太空": {
+        "SPCX": "SpaceX", "RKLB": "Rocket Lab", "ASTS": "AST SpaceMobile",
+        "LUNR": "Intuitive Machines",
+    },
+    "其他": {
+        "LIN": "林德", "NEE": "新世代能源", "TMUS": "T-Mobile",
+        "PYPL": "PayPal", "COIN": "Coinbase", "MSTR": "MicroStrategy",
+    },
 }
 
+UNIVERSE: dict[str, str] = {
+    t: name for group in SECTORS.values() for t, name in group.items()
+}
+SECTOR_OF: dict[str, str] = {
+    t: sector for sector, group in SECTORS.items() for t in group
+}
 # T2 二線(同板塊次強代表,預設不顯示但保留追蹤);其餘為 T1 精華
 TIER2 = {
     "WFC", "C", "MS", "SCHW", "AXP",

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import type { ValueRow } from "../api";
+import { useEffect, useMemo, useState } from "react";
+import type { Quotes, ValueRow } from "../api";
 import { fetchChart, fetchQuotes, fetchUsScreen, fmtTs } from "../api";
 import { CandleChart } from "../components/CandleChart";
 import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
@@ -7,6 +7,59 @@ import { useLoad } from "../hooks/useLoad";
 
 type SortKey = "momentum_pct" | "range_pos_20d" | "price"
   | "dividend_yield" | "revenue_growth" | "profit_margin" | "pe";
+
+/** 欄位定義:key 用於顯示偏好與排序,render 產生儲存格 */
+type Col = {
+  key: string;
+  label: string;
+  sort?: SortKey;
+  tip?: string;
+  render: (r: ValueRow, live: Quotes | null) => React.ReactNode;
+};
+
+const COLS: Col[] = [
+  { key: "sector", label: "類別",
+    render: (r) => <span className="muted">{r.sector ?? "—"}</span> },
+  { key: "momentum", label: "動量(12-1月)", sort: "momentum_pct",
+    render: (r) => (
+      <span className={r.momentum_pct != null && r.momentum_pct >= 0 ? "good" : "bad"}>
+        {r.momentum_pct != null ? `${r.momentum_pct > 0 ? "+" : ""}${r.momentum_pct}%` : "—"}
+      </span>
+    ) },
+  { key: "zone", label: "短線位置", sort: "range_pos_20d",
+    tip: "(現價−20日低)÷(20日高−20日低)。🟢 回調位 = <40% 且在自身200MA上;🔴 = >70% 貼頂。執行輔助,未驗證 alpha",
+    render: (r) => r.zone ? (
+      <span className={r.zone === "pullback" ? "good" : r.zone === "high" ? "bad" : "muted"}>
+        {r.zone === "pullback" ? "🟢 回調位" : r.zone === "high" ? "🔴 短線高檔" : "⚪ 中段"}
+        {" "}{r.range_pos_20d}%
+      </span>
+    ) : "—" },
+  { key: "price", label: "股價", sort: "price",
+    tip: "即時報價(Yahoo,約 15 分鐘延遲),每 60 秒更新;抓不到時退回週掃快照",
+    render: (r, live) => live?.quotes[r.ticker]?.price ?? r.price },
+  { key: "today", label: "今日",
+    render: (r, live) => {
+      const q = live?.quotes[r.ticker];
+      if (!q) return "—";
+      return (
+        <span className={q.today_pct >= 0 ? "good" : "bad"}>
+          {q.today_pct > 0 ? "+" : ""}{q.today_pct}%
+        </span>
+      );
+    } },
+  { key: "dy", label: "殖利率", sort: "dividend_yield",
+    render: (r) => <span className="muted">{r.dividend_yield != null ? `${r.dividend_yield}%` : "—"}</span> },
+  { key: "rg", label: "營收成長", sort: "revenue_growth",
+    render: (r) => <span className="muted">
+      {r.revenue_growth != null ? `${r.revenue_growth > 0 ? "+" : ""}${r.revenue_growth}%` : "—"}
+    </span> },
+  { key: "pm", label: "獲利率", sort: "profit_margin",
+    render: (r) => <span className="muted">{r.profit_margin != null ? `${r.profit_margin}%` : "—"}</span> },
+  { key: "pe", label: "PE", sort: "pe",
+    render: (r) => <span className="muted">{r.pe ?? "—"}</span> },
+];
+
+const LS_KEY = "us-screen-cols";
 
 export function UsScreen() {
   const { data, error } = useLoad(fetchUsScreen);
@@ -16,13 +69,35 @@ export function UsScreen() {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [desc, setDesc] = useState(true);
   const [tier, setTier] = useState<1 | 2 | 0>(1); // 0 = 全部
+  const [visible, setVisible] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) return new Set(JSON.parse(saved));
+    } catch { /* 忽略,回預設 */ }
+    return new Set(COLS.map((c) => c.key));
+  });
+
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify([...visible]));
+  }, [visible]);
+
+  const toggleCol = (k: string) => {
+    setVisible((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+  };
+
+  const shown = COLS.filter((c) => visible.has(c.key));
 
   const rows = useMemo(() => {
     if (!data) return [];
     const filtered = tier === 0
       ? data.rows
       : data.rows.filter((r) => (r.tier ?? 1) === tier);
-    if (!sortKey) return filtered; // 預設:動量遞減(伺服器排序)
+    if (!sortKey) return filtered;
     const val = (r: ValueRow) => r[sortKey] ?? -Infinity;
     return [...filtered].sort((a, b) =>
       desc ? Number(val(b)) - Number(val(a)) : Number(val(a)) - Number(val(b)));
@@ -34,7 +109,7 @@ export function UsScreen() {
       else { setSortKey(null); setDesc(true); }
     } else { setSortKey(k); setDesc(true); }
   };
-  const arrow = (k: SortKey) => (sortKey === k ? (desc ? " ▼" : " ▲") : "");
+  const arrow = (k?: SortKey) => (k && sortKey === k ? (desc ? " ▼" : " ▲") : "");
 
   if (error) return <ErrorBox msg={error} />;
   if (!data) return <Loading />;
@@ -44,18 +119,8 @@ export function UsScreen() {
     <>
       <h2>
         美股研究瀏覽
-        <InfoTip text="精選 ~85 檔各板塊龍頭。研究工具 — 無模型選股欄:美股截面動量已回測否決(前AI時代與 SPY 平手),故只給數據不掛招牌。每週更新" />
+        <InfoTip text="精選各板塊龍頭 + 熱門題材(太空/能源)。研究工具 — 無模型選股欄:美股截面動量已回測否決,只給數據不掛招牌。財報週更、報價即時" />
       </h2>
-      <div className="toolbar">
-        {([[1, "T1 精華"], [2, "T2 二線"], [0, "全部"]] as const).map(([v, label]) => (
-          <button key={v} className={tier === v ? "active" : ""} onClick={() => setTier(v)}>
-            {label}
-          </button>
-        ))}
-        <span className="muted">
-          更新:{fmtTs(data.scanned_at)}|顯示 {rows.length}/{data.fetched} 檔
-        </span>
-      </div>
 
       {s && (
         <div className="cards">
@@ -67,29 +132,50 @@ export function UsScreen() {
           </div>
           <div className="card">
             <span className="label">SPY 熱度(近12月)</span>
-            <span className="value">
-              {s.heat_12m_pct > 0 ? "+" : ""}{s.heat_12m_pct}%
-            </span>
+            <span className="value">{s.heat_12m_pct > 0 ? "+" : ""}{s.heat_12m_pct}%</span>
           </div>
         </div>
       )}
+
+      <div className="toolbar">
+        {([[1, "T1 精華"], [2, "T2 二線"], [0, "全部"]] as const).map(([v, label]) => (
+          <button key={v} className={tier === v ? "active" : ""} onClick={() => setTier(v)}>
+            {label}
+          </button>
+        ))}
+        <span className="muted">
+          更新:{fmtTs(data.scanned_at)}|顯示 {rows.length}/{data.fetched} 檔
+        </span>
+      </div>
+
+      <div className="col-picker">
+        <span className="muted">欄位:</span>
+        {COLS.map((c) => (
+          <label key={c.key} className="toggle">
+            <input
+              type="checkbox"
+              checked={visible.has(c.key)}
+              onChange={() => toggleCol(c.key)}
+            />
+            {c.label}
+          </label>
+        ))}
+      </div>
 
       <table>
         <thead>
           <tr>
             <th>代號</th><th>名稱</th>
-            <th className="sortable" onClick={() => onSort("momentum_pct")}>動量(12-1月){arrow("momentum_pct")}</th>
-            <th className="sortable" onClick={() => onSort("range_pos_20d")}>
-              短線位置{arrow("range_pos_20d")} <InfoTip text="(現價−20日低)÷(20日高−20日低)。🟢 回調位 = <40% 且在自身200MA上;🔴 = >70% 貼頂。執行輔助,未驗證 alpha" />
-            </th>
-            <th className="sortable" onClick={() => onSort("price")}>
-              股價{arrow("price")} <InfoTip text="即時報價(Yahoo,約 15 分鐘延遲),每 60 秒自動更新;抓不到即時價時退回週掃快照" />
-            </th>
-            <th>今日</th>
-            <th className="sortable" onClick={() => onSort("dividend_yield")}>殖利率{arrow("dividend_yield")}</th>
-            <th className="sortable" onClick={() => onSort("revenue_growth")}>營收成長{arrow("revenue_growth")}</th>
-            <th className="sortable" onClick={() => onSort("profit_margin")}>獲利率{arrow("profit_margin")}</th>
-            <th className="sortable" onClick={() => onSort("pe")}>PE{arrow("pe")}</th>
+            {shown.map((c) => (
+              <th
+                key={c.key}
+                className={c.sort ? "sortable" : ""}
+                onClick={c.sort ? () => onSort(c.sort!) : undefined}
+              >
+                {c.label}{arrow(c.sort)}
+                {c.tip && <> <InfoTip text={c.tip} /></>}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -101,31 +187,9 @@ export function UsScreen() {
             >
               <td>{r.ticker}</td>
               <td>{r.name}</td>
-              <td className={r.momentum_pct != null && r.momentum_pct >= 0 ? "good" : "bad"}>
-                {r.momentum_pct != null ? `${r.momentum_pct > 0 ? "+" : ""}${r.momentum_pct}%` : "—"}
-              </td>
-              <td>
-                {r.zone ? (
-                  <span className={r.zone === "pullback" ? "good" : r.zone === "high" ? "bad" : "muted"}>
-                    {r.zone === "pullback" ? "🟢 回調位" : r.zone === "high" ? "🔴 短線高檔" : "⚪ 中段"}
-                    {" "}{r.range_pos_20d}%
-                  </span>
-                ) : "—"}
-              </td>
-              <td>{live.data?.quotes[r.ticker]?.price ?? r.price}</td>
-              <td className={
-                (live.data?.quotes[r.ticker]?.today_pct ?? 0) >= 0 ? "good" : "bad"
-              }>
-                {live.data?.quotes[r.ticker] != null
-                  ? `${live.data.quotes[r.ticker].today_pct > 0 ? "+" : ""}${live.data.quotes[r.ticker].today_pct}%`
-                  : "—"}
-              </td>
-              <td className="muted">{r.dividend_yield != null ? `${r.dividend_yield}%` : "—"}</td>
-              <td className="muted">
-                {r.revenue_growth != null ? `${r.revenue_growth > 0 ? "+" : ""}${r.revenue_growth}%` : "—"}
-              </td>
-              <td className="muted">{r.profit_margin != null ? `${r.profit_margin}%` : "—"}</td>
-              <td className="muted">{r.pe ?? "—"}</td>
+              {shown.map((c) => (
+                <td key={c.key}>{c.render(r, live.data)}</td>
+              ))}
             </tr>
           ))}
         </tbody>
