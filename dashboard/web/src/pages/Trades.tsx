@@ -3,7 +3,10 @@ import { Empty, ErrorBox, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
 
 export function Trades() {
-  const { data, error } = useLoad(fetchTrades);
+  const { data, error } = useLoad(fetchTrades, [], {
+    keepPrevious: true,
+    refreshMs: 60_000,
+  });
   if (error) return <ErrorBox msg={error} />;
   if (!data) return <Loading />;
   if (data.length === 0) return <Empty msg="尚無交易紀錄" />;

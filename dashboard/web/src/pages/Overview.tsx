@@ -6,10 +6,12 @@ import { Card, Cards } from "../components/Card";
 import { Empty, ErrorBox, InfoTip, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
 
+const REFRESH = { keepPrevious: true, refreshMs: 60_000 };
+
 export function Overview() {
-  const status = useLoad(fetchStatus);
-  const equity = useLoad(fetchEquity);
-  const fng = useLoad(fetchFng);
+  const status = useLoad(fetchStatus, [], REFRESH);
+  const equity = useLoad(fetchEquity, [], REFRESH);
+  const fng = useLoad(fetchFng, [], { keepPrevious: true, refreshMs: 300_000 });
 
   if (status.error || equity.error) return <ErrorBox msg={(status.error ?? equity.error)!} />;
   if (!status.data || !equity.data) return <Loading />;
