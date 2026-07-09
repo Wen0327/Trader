@@ -81,7 +81,7 @@ function TickerChart({ ticker }: { ticker: string }) {
   const { data, error, fetching } = useLoad(
     () => fetchRotationTicker(ticker), [ticker], { keepPrevious: true },
   );
-  const [showBreakouts, setShowBreakouts] = useState(true);
+  const [showBreakouts, setShowBreakouts] = useState(false);
   if (error) return <ErrorBox msg={error} />;
   if (!data) return <Loading />;
   return (
