@@ -170,6 +170,16 @@ export type ValueScreenReport = {
       bench_0050_pct: number;
     } | null;
   };
+  market_state?: {
+    regime_on: boolean;
+    pct_vs_ma200: number;
+    heat_12m_pct: number;
+    bucket: string;
+    bucket_next_q_avg: number;
+    bucket_win_rate: number;
+    regime_next_q_avg: number;
+    regime_win_rate: number;
+  };
 };
 
 export const fetchScan = () => get<Scan>("/api/scan");

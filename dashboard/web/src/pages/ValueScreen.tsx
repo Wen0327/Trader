@@ -21,6 +21,8 @@ export function ValueScreen() {
         /{data.fetched}
       </p>
 
+      {data.market_state && <EntryHint s={data.market_state} />}
+
       {data.momentum?.performance && data.momentum.performance.n_rebalances > 1 && (
         <p className="muted">
           前瞻績效(自 {data.momentum.performance.since},
@@ -67,6 +69,35 @@ export function ValueScreen() {
         <TwChartDrawer ticker={selected} onClose={() => setSelected(null)} />
       )}
     </>
+  );
+}
+
+function EntryHint({ s }: { s: NonNullable<import("../api").ValueScreenReport["market_state"]> }) {
+  const win = s.bucket_win_rate;
+  const [tone, verdict] =
+    win >= 70 ? ["good", "歷史同狀態適合進場"] :
+    win >= 55 ? ["", "歷史同狀態中性,分批為宜"] :
+    ["bad", "歷史同狀態勝率偏低,謹慎"];
+  return (
+    <div className="cards">
+      <div className="card">
+        <span className="label">0050 vs 200MA</span>
+        <span className={`value ${s.regime_on ? "good" : "bad"}`}>
+          {s.regime_on ? "🟢" : "🔴"} {s.pct_vs_ma200 > 0 ? "+" : ""}{s.pct_vs_ma200}%
+        </span>
+      </div>
+      <div className="card">
+        <span className="label">市場熱度(近12月)</span>
+        <span className="value">{s.heat_12m_pct > 0 ? "+" : ""}{s.heat_12m_pct}%({s.bucket})</span>
+      </div>
+      <div className="card">
+        <span className="label">
+          進場提示
+          <InfoTip text={`依 2010-2026 回測條件分桶:目前狀態(${s.bucket})歷史下一季平均 ${s.bucket_next_q_avg > 0 ? "+" : ""}${s.bucket_next_q_avg}%、勝率 ${s.bucket_win_rate}%;200MA regime 勝率 ${s.regime_win_rate}%。樣本每桶約 16 次,參考用非保證`} />
+        </span>
+        <span className={`value ${tone}`}>{verdict}(勝率 {win}%)</span>
+      </div>
+    </div>
   );
 }
 
