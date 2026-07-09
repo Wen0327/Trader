@@ -20,8 +20,11 @@ def _bar_desc(item: dict) -> str:
     if not bar:
         return ""
     color = "陽" if bar["up"] else "陰"
-    return (f"|{color}線實體 {bar['body_pct']}%・收在區間 {bar['close_pos']}%"
+    desc = (f"|{color}線實體 {bar['body_pct']}%・收在區間 {bar['close_pos']}%"
             f"・量 {bar['vol_mult']}x")
+    if bar.get("patterns"):
+        desc += f"・形態:{'/'.join(bar['patterns'])}"
+    return desc
 
 
 def detect(rotation: dict) -> list[str]:

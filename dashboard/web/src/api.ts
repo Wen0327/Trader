@@ -66,6 +66,13 @@ export type WatchItem = {
   pct_to_exit?: number;
   since_entry_pct?: number;
   entry_date?: string | null;
+  bar?: {
+    body_pct: number;
+    close_pos: number;
+    vol_mult: number;
+    up: boolean;
+    patterns: string[];
+  };
 };
 
 export type Scan = {

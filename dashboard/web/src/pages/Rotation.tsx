@@ -72,12 +72,20 @@ export function Rotation() {
         </tbody>
       </table>
 
-      {selected && <TickerChart ticker={selected} />}
+      {selected && (
+        <TickerChart
+          ticker={selected}
+          watchItem={data.watchlist.find((w) => w.ticker === selected)}
+        />
+      )}
     </>
   );
 }
 
-function TickerChart({ ticker }: { ticker: string }) {
+function TickerChart({ ticker, watchItem }: {
+  ticker: string;
+  watchItem?: import("../api").WatchItem;
+}) {
   const { data, error, fetching } = useLoad(
     () => fetchRotationTicker(ticker), [ticker], { keepPrevious: true },
   );
@@ -103,6 +111,22 @@ function TickerChart({ ticker }: { ticker: string }) {
         <p className="muted chart-legend">
           黃線 200MA ｜ 綠虛線 55日高(進場)｜ 紅虛線 20日低(出場)｜ ▲ 歷史突破日
         </p>
+        {watchItem?.bar && (
+          <p className="chart-legend">
+            最新K棒:
+            <span className={watchItem.bar.up ? "good" : "bad"}>
+              {watchItem.bar.up ? "陽" : "陰"}線
+            </span>
+            {" "}實體 {watchItem.bar.body_pct}%・收在區間 {watchItem.bar.close_pos}%
+            ・量 {watchItem.bar.vol_mult}x
+            {watchItem.bar.patterns.length > 0 && (
+              <>
+                ・形態:<strong>{watchItem.bar.patterns.join(" / ")}</strong>
+                <InfoTip text="形態辨識為描述性資訊,統計預測力弱,不參與任何交易決策" />
+              </>
+            )}
+          </p>
+        )}
       </div>
     </>
   );

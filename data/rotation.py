@@ -113,11 +113,13 @@ def _trend_status(ticker: str) -> dict | None:
         o, h, l, v = (df[c].iloc[-1] for c in ("open", "high", "low", "volume"))
         rng = float(h - l) or 1e-9
         vol_ma20 = float(df["volume"].rolling(20).mean().iloc[-1]) or 1e-9
+        from data.candle_patterns import detect as detect_patterns
         bar = {
             "body_pct": round(abs(float(last - o)) / rng * 100),
             "close_pos": round(float(last - l) / rng * 100),
             "vol_mult": round(float(v) / vol_ma20, 1),
             "up": bool(last >= o),
+            "patterns": detect_patterns(df),
         }
 
         result = {
