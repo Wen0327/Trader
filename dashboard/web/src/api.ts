@@ -184,8 +184,21 @@ export type ValueScreenReport = {
   };
 };
 
+export type UsScreenReport = {
+  scanned_at: string;
+  universe_size: number;
+  fetched: number;
+  rows: ValueRow[];
+  spy_state: {
+    regime_on: boolean;
+    pct_vs_ma200: number;
+    heat_12m_pct: number;
+  } | null;
+};
+
 export const fetchScan = () => get<Scan>("/api/scan");
 export const fetchValueScreen = () => get<ValueScreenReport>("/api/value-screen");
+export const fetchUsScreen = () => get<UsScreenReport>("/api/us-screen");
 export const fetchRotation = () => get<Rotation>("/api/rotation");
 export const fetchRotationTicker = (symbol: string) =>
   get<TickerSeries>(`/api/rotation/ticker?symbol=${encodeURIComponent(symbol)}`);

@@ -150,10 +150,11 @@ class RotationService:
 
     def ticker_series(self, ticker: str) -> dict:
         from data.rotation import WATCHLIST
+        from data.us_screen import UNIVERSE as US_UNIVERSE
         from data.value_screen import UNIVERSE
         from data.yahoo_feed import fetch_ohlcv
 
-        allowed = {**WATCHLIST, **UNIVERSE}  # 白名單:輪動觀察 + 台股價值池
+        allowed = {**WATCHLIST, **UNIVERSE, **US_UNIVERSE}  # 輪動 + 台股 + 美股池
         if ticker not in allowed:
             raise KeyError(ticker)
 
@@ -305,6 +306,14 @@ def chart(symbol: str):
 def value_screen():
     try:
         return scan_store.latest("value_screen")
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.get("/api/us-screen")
+def us_screen():
+    try:
+        return scan_store.latest("us_screen")
     except FileNotFoundError as e:
         raise HTTPException(404, str(e))
 
