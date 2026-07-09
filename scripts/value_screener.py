@@ -29,7 +29,9 @@ if __name__ == "__main__":
     for r in result["rows"]:
         r["momentum_pct"] = momentum.get(r["ticker"])
         r["picked"] = r["ticker"] in picked_set
-    result["rows"].sort(key=lambda r: -(r.get("momentum_pct") or -999))
+    # 通過模型者(✅)排最前,其餘按動量遞減(被 cap 剔除的拋物線沉底部前段)
+    result["rows"].sort(key=lambda r: (not r["picked"],
+                                       -(r.get("momentum_pct") or -999)))
 
     rebalanced = update_tracking(picks)
     result["momentum"] = {

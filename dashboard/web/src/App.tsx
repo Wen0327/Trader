@@ -12,7 +12,7 @@ const TABS = {
   交易: Trades,
   掃描: Scanner,
   輪動: Rotation,
-  價值: ValueScreen,
+  台股: ValueScreen,
   回測: BacktestPage,
 } as const;
 type Tab = keyof typeof TABS;
