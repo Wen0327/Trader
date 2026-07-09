@@ -7,8 +7,8 @@ export function StatusBadge({ item }: { item: WatchItem }) {
   const retreated =
     (item.status_rank ?? 0) < 4 && item.days_since_trigger != null;
   return (
-    <>
-      <span className={`badge badge-${status}`}>{label}</span>
+    <span className="status-cell">
+      <span className={`badge badge-main badge-${status}`}>{label}</span>
       {retreated && (
         <span
           className="badge badge-retreat"
@@ -17,6 +17,6 @@ export function StatusBadge({ item }: { item: WatchItem }) {
           🔄 {item.days_since_trigger}天前曾突破
         </span>
       )}
-    </>
+    </span>
   );
 }
