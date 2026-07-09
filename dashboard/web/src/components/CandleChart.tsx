@@ -85,7 +85,9 @@ export function CandleChart({ data, showBreakouts, height = 360 }: Props) {
       candles.setMarkers(markers);
     }
 
-    chart.timeScale().fitContent();
+    // 預設只顯示最近 ~120 個交易日(全量 K 棒太細),往左拖可看完整歷史
+    const n = data.series.length;
+    chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 120), to: n + 3 });
     return () => {
       chart.remove();
       chartRef.current = null;
