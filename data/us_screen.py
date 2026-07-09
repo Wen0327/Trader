@@ -49,7 +49,14 @@ SECTORS: dict[str, dict[str, str]] = {
     },
     "工業": {
         "CAT": "開拓重工", "DE": "迪爾", "BA": "波音", "GE": "奇異",
-        "HON": "漢威", "LMT": "洛克希德", "RTX": "雷神", "UNP": "聯合太平洋",
+        "HON": "漢威", "UNP": "聯合太平洋",
+    },
+    "國防": {
+        "LMT": "洛克希德", "RTX": "雷神", "NOC": "諾斯洛普", "GD": "通用動力",
+        "KTOS": "Kratos", "AVAV": "AeroVironment", "ONDS": "Ondas",
+    },
+    "稀土": {
+        "MP": "MP Materials", "USAR": "USA Rare Earth", "UUUU": "Energy Fuels",
     },
     "能源": {
         "XOM": "埃克森", "CVX": "雪佛龍", "COP": "康菲",
@@ -77,7 +84,7 @@ TIER2 = {
     "WFC", "C", "MS", "SCHW", "AXP",
     "PFE", "MRK", "ABT", "AMGN",
     "PEP", "LOW", "SBUX", "NKE",
-    "UNP", "HON", "RTX", "DE",
+    "UNP", "HON", "DE",
     "COP", "NEE", "LIN", "TMUS",
     "IBM", "TXN", "KLAC", "DDOG", "NET", "WDAY",
 }

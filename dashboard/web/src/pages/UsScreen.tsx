@@ -59,9 +59,9 @@ const COLS: Col[] = [
     render: (r) => <span className="muted">{r.pe ?? "—"}</span> },
 ];
 
-const SECTORS = ["巨頭", "半導體", "軟體", "金融", "醫療",
-                 "消費", "工業", "能源", "太空", "其他"];
-const LS_KEY = "us-screen-sectors";
+const SECTORS = ["巨頭", "半導體", "軟體", "金融", "醫療", "消費",
+                 "工業", "國防", "能源", "太空", "稀土", "其他"];
+const LS_KEY = "us-screen-sectors-v2"; // 版本升級:新板塊預設全勾
 
 export function UsScreen() {
   const { data, error } = useLoad(fetchUsScreen);
