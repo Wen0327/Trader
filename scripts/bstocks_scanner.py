@@ -92,6 +92,9 @@ def enrich_with_news(report: dict) -> int:
 
     from data.fear_greed import fetch_latest
     report["fear_greed"] = fetch_latest()
+
+    from data.rotation import watch
+    report["rotation"] = watch()
     return added
 
 
@@ -124,4 +127,14 @@ if __name__ == "__main__":
         f"{k.split('/')[0]} {v:+.2f}" if v is not None else f"{k.split('/')[0]} n/a"
         for k, v in cs.items()))
     print(f"新聞存檔: +{archived} 筆")
+
+    rot = report.get("rotation", {})
+    for r in rot.get("ratios", []):
+        print(f"輪動比值 {r['pair']}: {r['ratio']} "
+              f"({'🟢啟動' if r['rotation_on'] else '⚪未啟動'}, "
+              f"vs 200MA {r['pct_vs_ma200']:+.1f}%)")
+    ready = [w for w in rot.get("watchlist", []) if w["above_ma200"]]
+    if ready:
+        print("觀察清單站上 200MA: " + ", ".join(
+            f"{w['ticker']}(距55日高 {w['pct_to_55d_high']:+.1f}%)" for w in ready))
     print(f"完整報告: {out}")

@@ -1,0 +1,70 @@
+"""輪動監控:「AI 受害者」觀察清單 + 資金輪動比值。
+
+論點(2026-07-08):AI 集中化若逆轉,資金輪動會先反映在比值與
+受害者標的的趨勢突破上。此模組只觀察、不預測 — 進場條件依然是
+各標的自己的趨勢確認(站回 200MA / 突破 55 日高),絕不接刀。
+執行面:這些標的幣安買不到,實作交易需開 Alpaca(未開通)。
+"""
+
+from __future__ import annotations
+
+from data.yahoo_feed import fetch_ohlcv
+
+# 比值:分子強於分母且比值站上 200MA = 輪動啟動
+RATIO_PAIRS = [("IWM", "QQQ"), ("RSP", "SPY")]
+
+# 受害者觀察清單(a priori,2026-07-08 定)
+WATCHLIST = {
+    "U": "Unity(SaaS/引擎)",
+    "IWM": "小型股 Russell 2000",
+    "RSP": "S&P500 等權重",
+    "XBI": "生技",
+    "TAN": "太陽能",
+    "EEM": "新興市場",
+    "EFA": "歐日已開發",
+}
+
+
+def _trend_status(ticker: str) -> dict | None:
+    try:
+        df = fetch_ohlcv(ticker, lookback_days=400)
+        close = df["close"]
+        ma200 = close.rolling(200).mean().iloc[-1]
+        hi55 = close.rolling(55).max().iloc[-1]
+        last = close.iloc[-1]
+        return {
+            "ticker": ticker,
+            "price": round(float(last), 2),
+            "above_ma200": bool(last > ma200),
+            "pct_vs_ma200": round(float(last / ma200 - 1) * 100, 1),
+            "pct_to_55d_high": round(float(last / hi55 - 1) * 100, 1),
+        }
+    except Exception:
+        return None
+
+
+def _ratio_status(num: str, den: str) -> dict | None:
+    try:
+        a = fetch_ohlcv(num, lookback_days=400)["close"]
+        b = fetch_ohlcv(den, lookback_days=400)["close"]
+        ratio = (a / b).dropna()
+        ma200 = ratio.rolling(200).mean().iloc[-1]
+        last = ratio.iloc[-1]
+        return {
+            "pair": f"{num}/{den}",
+            "ratio": round(float(last), 4),
+            "rotation_on": bool(last > ma200),
+            "pct_vs_ma200": round(float(last / ma200 - 1) * 100, 1),
+        }
+    except Exception:
+        return None
+
+
+def watch() -> dict:
+    return {
+        "ratios": [r for p in RATIO_PAIRS if (r := _ratio_status(*p))],
+        "watchlist": [
+            {**s, "label": WATCHLIST[t]}
+            for t in WATCHLIST if (s := _trend_status(t))
+        ],
+    }

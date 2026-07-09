@@ -39,10 +39,28 @@ export type Mover = {
   headlines?: string[];
 };
 
+export type RotationRatio = {
+  pair: string;
+  ratio: number;
+  rotation_on: boolean;
+  pct_vs_ma200: number;
+};
+
+export type WatchItem = {
+  ticker: string;
+  label: string;
+  price: number;
+  above_ma200: boolean;
+  pct_vs_ma200: number;
+  pct_to_55d_high: number;
+};
+
 export type Scan = {
   scanned_at: string;
   movers: Mover[];
   crypto_sentiment?: Record<string, number | null>;
+  fear_greed?: { value: number; label: string } | null;
+  rotation?: { ratios: RotationRatio[]; watchlist: WatchItem[] };
 };
 
 export type Backtest = {
