@@ -13,15 +13,25 @@ from data.yahoo_feed import fetch_ohlcv
 # 比值:分子強於分母且比值站上 200MA = 輪動啟動
 RATIO_PAIRS = [("IWM", "QQQ"), ("RSP", "SPY")]
 
-# 受害者觀察清單(a priori,2026-07-08 定)
+# 受害者觀察清單(2026-07-09 修訂:軟體股改用事件研究法篩選 —
+# SaaSpocalypse 窗口 2026-01-30~02-27 超額跌幅 >15% 且營收成長 >5%,
+# 見對話紀錄。CRM/ADBE/HUBS 經事件歸因排除:跌幅非該事件所致)
 WATCHLIST = {
-    "U": "Unity(SaaS/引擎)",
+    # 宏觀輪動載具
     "IWM": "小型股 Russell 2000",
     "RSP": "S&P500 等權重",
     "XBI": "生技",
     "TAN": "太陽能",
     "EEM": "新興市場",
     "EFA": "歐日已開發",
+    "IGV": "軟體板塊 ETF",
+    # SaaSpocalypse 錯殺候選(事件歸因 + 基本面健康)
+    "ZM": "Zoom(事件-19%,已回200MA)",
+    "U": "Unity(事件-37%,營收+17%)",
+    "MNDY": "Monday.com(事件-36%,營收+25%)",
+    "TEAM": "Atlassian(事件-36%,營收+32%)",
+    "ZS": "Zscaler(事件-26%,營收+25%)",
+    "WDAY": "Workday(事件-23%,營收+14%)",
 }
 
 
