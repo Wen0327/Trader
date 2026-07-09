@@ -1,5 +1,5 @@
 import { fetchScan, fmtTs } from "../api";
-import { ErrorBox, Loading } from "../components/Feedback";
+import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
 
 export function Scanner() {
@@ -42,7 +42,7 @@ export function Scanner() {
 
       {data.rotation && (
         <>
-          <h2>資金輪動監控(AI 受害者觀察清單 — 只觀察,突破才考慮)</h2>
+          <h2>資金輪動監控 <InfoTip text="AI 受害者觀察清單:只觀察不接刀,個股站上 200MA 且突破 55 日高才考慮行動;詳見「輪動」分頁" /></h2>
           <p>
             {data.rotation.ratios.map((r) => (
               <span key={r.pair} className="sentiment">

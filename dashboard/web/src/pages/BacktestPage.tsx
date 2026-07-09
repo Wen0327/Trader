@@ -4,7 +4,7 @@ import {
 } from "recharts";
 import { fetchBacktest } from "../api";
 import { Card, Cards } from "../components/Card";
-import { ErrorBox, Loading } from "../components/Feedback";
+import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
 
 const SYMBOLS = ["BTC/USDT", "ETH/USDT"];
@@ -22,7 +22,10 @@ export function BacktestPage() {
             {s.split("/")[0]}
           </button>
         ))}
-        <span className="muted">Donchian 55/20 vs Buy & Hold(2017-09 起,含費用)</span>
+        <span className="muted">
+          Donchian 55/20 vs Buy & Hold
+          <InfoTip text="回測區間 2017-09 至今;含手續費 0.1% + 滑價 0.05%;訊號延遲一根 K 線避免前視偏差" />
+        </span>
       </div>
       {error && <ErrorBox msg={error} />}
       {!data && !error && <Loading />}

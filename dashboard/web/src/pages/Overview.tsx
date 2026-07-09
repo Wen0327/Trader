@@ -3,7 +3,7 @@ import {
 } from "recharts";
 import { fetchEquity, fetchFng, fetchStatus, fmtTs } from "../api";
 import { Card, Cards } from "../components/Card";
-import { Empty, ErrorBox, Loading } from "../components/Feedback";
+import { Empty, ErrorBox, InfoTip, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
 
 export function Overview() {
@@ -52,7 +52,7 @@ export function Overview() {
         <PositionTable rows={positions} />
       )}
 
-      <h2>合約軌道(週期空單,testnet 紙上驗證)</h2>
+      <h2>合約軌道 <InfoTip text="週期空單策略:合約 testnet 紙上驗證,槓桿 1x 硬鎖,2026-10 窗口結束覆盤" /></h2>
       <Cards>
         <Card label="合約權益 (USDT)" value={s.futures.equity?.toFixed(2) ?? "—"} />
         <Card

@@ -15,7 +15,7 @@ export function Rotation() {
 
   return (
     <>
-      <h2>第一幕:輪動比值(站上 200MA = 資金離開巨頭的趨勢級證據)</h2>
+      <h2>第一幕:輪動比值 <InfoTip text="比值站上自身 200MA = 資金離開 AI 巨頭、流向廣度市場的趨勢級證據" /></h2>
       <div className="chart-row">
         {data.ratios.map((r) => (
           <div className="chart-half" key={r.pair}>
@@ -77,6 +77,7 @@ function TickerChart({ ticker }: { ticker: string }) {
     <>
       <h2>
         {ticker} — {data.ticker === ticker ? data.label : "載入中…"}
+        <InfoTip text="兩道確認門:站上 200MA(黃線)= 有資格考慮;突破 55 日高(綠虛線)= 扣扳機,趨勢確立" />
       </h2>
       <div style={{ opacity: fetching ? 0.45 : 1, transition: "opacity 0.15s" }}>
         <ResponsiveContainer width="100%" height={300}>
@@ -86,8 +87,8 @@ function TickerChart({ ticker }: { ticker: string }) {
             <Tooltip />
             <Legend />
             <Line name="收盤價" dataKey="close" dot={false} stroke="#4f9cf9" strokeWidth={1.8} isAnimationActive={false} />
-            <Line name="200MA(第一道門)" dataKey="ma200" dot={false} stroke="#f0b429" strokeWidth={1.2} isAnimationActive={false} />
-            <Line name="55日高(扣扳機線)" dataKey="hi55" dot={false} stroke="#38c172" strokeWidth={1} strokeDasharray="4 3" isAnimationActive={false} />
+            <Line name="200MA" dataKey="ma200" dot={false} stroke="#f0b429" strokeWidth={1.2} isAnimationActive={false} />
+            <Line name="55日高" dataKey="hi55" dot={false} stroke="#38c172" strokeWidth={1} strokeDasharray="4 3" isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
