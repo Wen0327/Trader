@@ -92,6 +92,8 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
   font-weight: 600;
 }
 .badge-retreat { color: #b48ce0; border-color: #b48ce044; }
+.badge-grade-mid { color: #b8cf6e; border-color: #b8cf6e44; background: #b8cf6e10; }
+.badge-grade-weak { color: #f0913a; border-color: #f0913a66; background: #f0913a1c; }
 
 .status-cell { display: inline-flex; align-items: center; gap: 8px; }
 .badge-main {

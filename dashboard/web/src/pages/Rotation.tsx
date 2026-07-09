@@ -43,7 +43,11 @@ export function Rotation() {
       <h2>候選人 <InfoTip text="每日 21:00 自動更新;點任一列可展開該檔走勢圖" /></h2>
       <table>
         <thead>
-          <tr><th>狀態</th><th>標的</th><th>說明</th><th>價格</th><th>200MA</th><th>距55日高</th></tr>
+          <tr>
+            <th>狀態</th><th>標的</th><th>說明</th><th>價格</th>
+            <th>200MA</th><th>距55日高</th>
+            <th>距出場線 <InfoTip text="現價距 20 日低的緩衝 — 跌破即訊號失效。僅訊號有效中的標的顯示" /></th>
+          </tr>
         </thead>
         <tbody>
           {data.watchlist.map((w) => (
@@ -60,6 +64,9 @@ export function Rotation() {
                 {w.above_ma200 ? "站上" : "跌破"} ({w.pct_vs_ma200 > 0 ? "+" : ""}{w.pct_vs_ma200}%)
               </td>
               <td className={w.pct_to_55d_high > -3 ? "good" : ""}>{w.pct_to_55d_high}%</td>
+              <td className={w.pct_to_exit == null ? "muted" : w.pct_to_exit > 5 ? "good" : "bad"}>
+                {w.pct_to_exit == null ? "—" : `+${w.pct_to_exit}%`}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -101,6 +108,7 @@ function TickerChart({ ticker }: { ticker: string }) {
             <Line name="收盤價" dataKey="close" dot={false} stroke="#4f9cf9" strokeWidth={1.8} isAnimationActive={false} />
             <Line name="200MA" dataKey="ma200" dot={false} stroke="#f0b429" strokeWidth={1.2} isAnimationActive={false} />
             <Line name="55日高" dataKey="hi55" dot={false} stroke="#38c172" strokeWidth={1} strokeDasharray="4 3" isAnimationActive={false} />
+            <Line name="20日低(出場線)" dataKey="lo20" dot={false} stroke="#e3546c" strokeWidth={1} strokeDasharray="4 3" isAnimationActive={false} />
             {showBreakouts && (
               <Scatter
                 name="突破日"

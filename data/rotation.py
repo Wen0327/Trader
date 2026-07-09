@@ -87,10 +87,29 @@ def _trend_status(ticker: str) -> dict | None:
 
         # 狀態機:Donchian 倉位狀態(突破後、未破20日低 = 訊號存續)
         from strategy.donchian import DonchianBreakout
-        signal_active = bool(
-            DonchianBreakout(55, 20).generate_signals(df).iloc[-1] == 1.0)
+        signals = DonchianBreakout(55, 20).generate_signals(df)
+        signal_active = bool(signals.iloc[-1] == 1.0)
 
-        return {
+        # 有效訊號分級:距出場線緩衝(生命值)× 突破後損益(戰績)
+        grade_fields = {}
+        if signal_active:
+            lo20 = close.rolling(20).min().shift(1).iloc[-1]
+            pct_to_exit = round(float(last / lo20 - 1) * 100, 1)
+            entries = signals[signals.diff() == 1.0]
+            entry_close = float(close.loc[entries.index[-1]]) if len(entries) else float(last)
+            since_entry = round(float(last / entry_close - 1) * 100, 1)
+            in_profit = since_entry > 0
+            buffer_ok = pct_to_exit > 5.0
+            grade = "strong" if (in_profit and buffer_ok) else \
+                    "weak" if (not in_profit and not buffer_ok) else "mid"
+            grade_fields = {
+                "signal_grade": grade,
+                "pct_to_exit": pct_to_exit,
+                "since_entry_pct": since_entry,
+                "entry_date": entries.index[-1].strftime("%Y-%m-%d") if len(entries) else None,
+            }
+
+        result = {
             "ticker": ticker,
             "price": round(float(last), 2),
             "above_ma200": above,
@@ -99,7 +118,12 @@ def _trend_status(ticker: str) -> dict | None:
             "last_trigger_date": last_trigger.strftime("%Y-%m-%d") if last_trigger is not None else None,
             "days_since_trigger": int((close.index[-1] - last_trigger).days) if last_trigger is not None else None,
             **classify(above, vs_ma, to_hi, signal_active),
+            **grade_fields,
         }
+        if signal_active:
+            suffix = {"strong": "・強", "mid": "・中", "weak": "・弱"}[grade_fields["signal_grade"]]
+            result["status_label"] += suffix
+        return result
     except Exception:
         return None
 

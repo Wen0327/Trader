@@ -62,6 +62,10 @@ export type WatchItem = {
   status_rank?: number;
   last_trigger_date?: string | null;
   days_since_trigger?: number | null;
+  signal_grade?: "strong" | "mid" | "weak";
+  pct_to_exit?: number;
+  since_entry_pct?: number;
+  entry_date?: string | null;
 };
 
 export type Scan = {
@@ -110,6 +114,7 @@ export type TickerSeries = {
     close: number;
     ma200: number | null;
     hi55: number | null;
+    lo20: number | null;
     breakout: number | null; // 突破日 = 當日收盤價,非突破日 = null
   }[];
 };
