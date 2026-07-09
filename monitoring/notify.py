@@ -20,6 +20,8 @@ log = logging.getLogger("notify")
 
 
 def send(message: str) -> None:
+    if os.environ.get("DISCORD_MUTED", "").strip() == "1":
+        return  # 研究期靜音(.env DISCORD_MUTED=1;移除即恢復)
     webhook = os.environ.get("DISCORD_WEBHOOK", "").strip()
     if not webhook:
         return
