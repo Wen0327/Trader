@@ -150,7 +150,12 @@ def watch() -> dict:
         {**s, "label": WATCHLIST[t]}
         for t in WATCHLIST if (s := _trend_status(t))
     ]
-    items.sort(key=lambda w: -w["status_rank"])  # 越接近可行動排越前
+    grade_order = {"strong": 0, "mid": 1, "weak": 2}
+    items.sort(key=lambda w: (
+        -w["status_rank"],                          # 越接近可行動排越前
+        grade_order.get(w.get("signal_grade"), 3),  # 同級中:強 > 中 > 弱
+        -(w.get("pct_to_exit") or 0),               # 同分級:緩衝厚的在前
+    ))
     return {
         "ratios": [r for p in RATIO_PAIRS if (r := _ratio_status(*p))],
         "watchlist": items,
