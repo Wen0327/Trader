@@ -10,76 +10,52 @@ export function ValueScreen() {
   if (error) return <ErrorBox msg={error} />;
   if (!data) return <Loading />;
 
-  const c = data.criteria;
   return (
     <>
       <h2>
-        台股價值篩選
-        <InfoTip text={`每週更新。門檻:殖利率 ≥ ${c.min_dividend_yield}%、營收成長 ≥ ${c.min_revenue_growth}%、獲利率 ≥ ${c.min_profit_margin}%。「產業前景」不可量化,由你定性判斷 — 此為研究工具,與趨勢系統分離`}
-        />
+        台股動量模型
+        <InfoTip text="✅ = 12-1月截面動量 TOP10(季調倉)。回測 2010-2026 大勝 0050(鄰域12/12、雙子區段皆勝),生存者偏差無法量化 → 前瞻追蹤中,逐季對帳。財報欄位為參考資訊,不參與選股" />
       </h2>
       <p className="muted">
         更新:{fmtTs(data.scanned_at)}|通過 {data.rows.filter((r) => r.passed).length}
         /{data.fetched}
       </p>
 
-      {data.momentum && (
-        <>
-          <h2>
-            📈 動量 TOP10
-            <InfoTip text="12-1月截面動量前10,季調倉。回測 2010-2026 大勝 0050(鄰域12/12、雙子區段皆勝),但生存者偏差無法量化 — 此為前瞻追蹤,累積真實樣本外證據,幾季後對帳" />
-          </h2>
-          <div className="cards">
-            {data.momentum.picks.map((p) => (
-              <div className="card" key={p.ticker}>
-                <span className="label">
-                  {p.ticker.replace(/\.TWO?$/, "")} {p.name}
-                </span>
-                <span className={`value ${p.momentum_pct >= 0 ? "good" : "bad"}`}>
-                  {p.momentum_pct > 0 ? "+" : ""}{p.momentum_pct}%
-                </span>
-              </div>
-            ))}
-          </div>
-          {data.momentum.performance && data.momentum.performance.n_rebalances > 1 && (
-            <p className="muted">
-              前瞻績效(自 {data.momentum.performance.since},
-              {data.momentum.performance.n_rebalances} 次調倉):
-              策略 <strong>{data.momentum.performance.strategy_pct}%</strong> vs
-              0050 <strong>{data.momentum.performance.bench_0050_pct}%</strong>
-            </p>
-          )}
-        </>
+      {data.momentum?.performance && data.momentum.performance.n_rebalances > 1 && (
+        <p className="muted">
+          前瞻績效(自 {data.momentum.performance.since},
+          {data.momentum.performance.n_rebalances} 次調倉):
+          策略 <strong>{data.momentum.performance.strategy_pct}%</strong> vs
+          0050 <strong>{data.momentum.performance.bench_0050_pct}%</strong>
+        </p>
       )}
-
-      <h2>價值篩選表</h2>
       <table>
         <thead>
           <tr>
-            <th></th><th>代號</th><th>名稱</th><th>股價</th>
-            <th>殖利率</th><th>營收成長</th><th>獲利率</th><th>PE</th><th>負債/權益</th>
+            <th></th><th>代號</th><th>名稱</th><th>動量(12-1月)</th><th>股價</th>
+            <th>殖利率</th><th>營收成長</th><th>獲利率</th><th>PE</th>
           </tr>
         </thead>
         <tbody>
           {data.rows.map((r) => (
             <tr
               key={r.ticker}
-              className={`clickable ${r.passed ? "" : "row-dim"} ${selected === r.ticker ? "selected" : ""}`}
+              className={`clickable ${r.picked ? "" : "row-dim"} ${selected === r.ticker ? "selected" : ""}`}
               onClick={() => setSelected(r.ticker)}
             >
-              <td>{r.passed ? "✅" : ""}</td>
+              <td>{r.picked ? "✅" : ""}</td>
               <td>{r.ticker.replace(/\.TWO?$/, "")}</td>
               <td>{r.name}</td>
-              <td>{r.price}</td>
-              <td className={r.dividend_yield != null && r.dividend_yield >= c.min_dividend_yield ? "good" : "muted"}>
-                {r.dividend_yield != null ? `${r.dividend_yield}%` : "—"}
+              <td className={r.momentum_pct != null && r.momentum_pct >= 0 ? "good" : "bad"}>
+                {r.momentum_pct != null ? `${r.momentum_pct > 0 ? "+" : ""}${r.momentum_pct}%` : "—"}
               </td>
-              <td className={r.revenue_growth != null && r.revenue_growth >= 0 ? "good" : "bad"}>
+              <td>{r.price}</td>
+              <td className="muted">{r.dividend_yield != null ? `${r.dividend_yield}%` : "—"}</td>
+              <td className="muted">
                 {r.revenue_growth != null ? `${r.revenue_growth > 0 ? "+" : ""}${r.revenue_growth}%` : "—"}
               </td>
-              <td>{r.profit_margin != null ? `${r.profit_margin}%` : "—"}</td>
-              <td>{r.pe ?? "—"}</td>
-              <td>{r.debt_to_equity ?? "—"}</td>
+              <td className="muted">{r.profit_margin != null ? `${r.profit_margin}%` : "—"}</td>
+              <td className="muted">{r.pe ?? "—"}</td>
             </tr>
           ))}
         </tbody>

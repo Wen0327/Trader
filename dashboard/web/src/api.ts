@@ -138,7 +138,9 @@ export type ValueRow = {
   profit_margin: number | null;
   pe: number | null;
   debt_to_equity: number | null;
-  passed: boolean;
+  passed: boolean;          // 舊殖利率三關(保留於數據,不再作為主標記)
+  momentum_pct?: number | null;
+  picked?: boolean;         // ✅ = 動量 TOP10 成員
 };
 
 export type MomentumPick = {

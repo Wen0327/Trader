@@ -27,19 +27,22 @@ def _clean_returns(adj: pd.DataFrame) -> pd.DataFrame:
     return ret.mask(ret.abs() > 0.11, 0.0)  # 台股漲跌停清洗
 
 
-def current_picks() -> list[dict]:
+def momentum_all() -> dict[str, float]:
+    """全池 12-1 動量(%),供表格排序與 TOP10 選取。"""
     tickers = list(UNIVERSE)
     adj = yf.download(tickers, period="2y", auto_adjust=True,
                       progress=False)["Close"]
     clean = (1 + _clean_returns(adj)).cumprod()
     momentum = (clean.shift(SKIP) / clean.shift(LOOKBACK) - 1).iloc[-1].dropna()
-    top = momentum.sort_values(ascending=False).head(TOP_N)
-    prices = adj.iloc[-1]
+    return {t: round(float(m) * 100, 1) for t, m in momentum.items()}
+
+
+def current_picks(momentum: dict[str, float] | None = None) -> list[dict]:
+    momentum = momentum or momentum_all()
+    top = sorted(momentum.items(), key=lambda kv: -kv[1])[:TOP_N]
     return [
-        {"ticker": t, "name": UNIVERSE[t],
-         "momentum_pct": round(float(m) * 100, 1),
-         "price": round(float(prices[t]), 2)}
-        for t, m in top.items()
+        {"ticker": t, "name": UNIVERSE[t], "momentum_pct": m}
+        for t, m in top
     ]
 
 
