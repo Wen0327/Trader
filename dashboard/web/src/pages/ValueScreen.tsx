@@ -53,7 +53,7 @@ export function ValueScreen() {
                 {r.momentum_pct != null ? `${r.momentum_pct > 0 ? "+" : ""}${r.momentum_pct}%` : "—"}
               </td>
               <td>
-                {r.picked && r.zone ? (
+                {r.zone ? (
                   <span className={
                     r.zone === "pullback" ? "good" : r.zone === "high" ? "bad" : "muted"
                   }>
