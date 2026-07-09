@@ -196,9 +196,16 @@ export type UsScreenReport = {
   } | null;
 };
 
+export type Quotes = {
+  asof: string;
+  quotes: Record<string, { price: number; today_pct: number }>;
+};
+
 export const fetchScan = () => get<Scan>("/api/scan");
 export const fetchValueScreen = () => get<ValueScreenReport>("/api/value-screen");
 export const fetchUsScreen = () => get<UsScreenReport>("/api/us-screen");
+export const fetchQuotes = (market: "us" | "tw") =>
+  get<Quotes>(`/api/quotes?market=${market}`);
 export const fetchRotation = () => get<Rotation>("/api/rotation");
 export const fetchRotationTicker = (symbol: string) =>
   get<TickerSeries>(`/api/rotation/ticker?symbol=${encodeURIComponent(symbol)}`);

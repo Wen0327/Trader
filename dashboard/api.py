@@ -318,6 +318,53 @@ def us_screen():
         raise HTTPException(404, str(e))
 
 
+class QuoteService:
+    """批量即時報價(Yahoo,~15 分鐘延遲),60 秒 TTL。"""
+
+    TTL = 60
+
+    def __init__(self):
+        self._cache: dict[str, tuple[float, dict]] = {}
+
+    def quotes(self, market: str) -> dict:
+        import time
+
+        import yfinance as yf
+        hit = self._cache.get(market)
+        if hit and time.time() - hit[0] < self.TTL:
+            return hit[1]
+
+        if market == "us":
+            from data.us_screen import UNIVERSE
+        else:
+            from data.value_screen import UNIVERSE
+        tickers = list(UNIVERSE)
+        px = yf.download(tickers, period="5d", interval="1d",
+                         auto_adjust=True, progress=False)["Close"]
+        out = {}
+        for t in tickers:
+            s = px[t].dropna() if t in px.columns else None
+            if s is None or len(s) < 2:
+                continue
+            last, prev = float(s.iloc[-1]), float(s.iloc[-2])
+            out[t] = {"price": round(last, 2),
+                      "today_pct": round((last / prev - 1) * 100, 2)}
+        result = {"asof": __import__("datetime").datetime.utcnow()
+                  .strftime("%Y-%m-%d %H:%M:%S"), "quotes": out}
+        self._cache[market] = (time.time(), result)
+        return result
+
+
+quote_service = QuoteService()
+
+
+@app.get("/api/quotes")
+def quotes(market: str = "us"):
+    if market not in ("us", "tw"):
+        raise HTTPException(400, "market 須為 us 或 tw")
+    return quote_service.quotes(market)
+
+
 @app.get("/api/backtest")
 def backtest(symbol: str = "BTC/USDT"):
     try:
