@@ -4,6 +4,7 @@ import {
 } from "recharts";
 import { fetchRotation, fetchRotationTicker } from "../api";
 import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
+import { StatusBadge } from "../components/StatusBadge";
 import { useLoad } from "../hooks/useLoad";
 
 export function Rotation() {
@@ -41,7 +42,7 @@ export function Rotation() {
       <h2>候選人 <InfoTip text="每日 21:00 自動更新;點任一列可展開該檔走勢圖" /></h2>
       <table>
         <thead>
-          <tr><th>標的</th><th>說明</th><th>價格</th><th>200MA</th><th>距55日高</th></tr>
+          <tr><th>狀態</th><th>標的</th><th>說明</th><th>價格</th><th>200MA</th><th>距55日高</th></tr>
         </thead>
         <tbody>
           {data.watchlist.map((w) => (
@@ -50,6 +51,7 @@ export function Rotation() {
               className={`clickable ${selected === w.ticker ? "selected" : ""}`}
               onClick={() => setSelected(w.ticker)}
             >
+              <td><StatusBadge item={w} /></td>
               <td>{w.ticker}</td>
               <td className="muted">{w.label}</td>
               <td>{w.price}</td>

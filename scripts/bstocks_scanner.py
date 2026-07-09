@@ -133,8 +133,8 @@ if __name__ == "__main__":
         print(f"輪動比值 {r['pair']}: {r['ratio']} "
               f"({'🟢啟動' if r['rotation_on'] else '⚪未啟動'}, "
               f"vs 200MA {r['pct_vs_ma200']:+.1f}%)")
-    ready = [w for w in rot.get("watchlist", []) if w["above_ma200"]]
-    if ready:
-        print("觀察清單站上 200MA: " + ", ".join(
-            f"{w['ticker']}(距55日高 {w['pct_to_55d_high']:+.1f}%)" for w in ready))
+    notable = [w for w in rot.get("watchlist", []) if w.get("status_rank", 0) >= 1]
+    for w in notable:
+        print(f"  {w['status_label']} {w['ticker']}"
+              f"(200MA {w['pct_vs_ma200']:+.1f}%, 距55日高 {w['pct_to_55d_high']:+.1f}%)")
     print(f"完整報告: {out}")

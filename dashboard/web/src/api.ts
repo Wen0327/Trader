@@ -57,6 +57,9 @@ export type WatchItem = {
   above_ma200: boolean;
   pct_vs_ma200: number;
   pct_to_55d_high: number;
+  status?: "watching" | "near_gate1" | "gate1_passed" | "near_trigger" | "triggered";
+  status_label?: string;
+  status_rank?: number;
 };
 
 export type Scan = {

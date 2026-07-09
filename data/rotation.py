@@ -35,6 +35,31 @@ WATCHLIST = {
 }
 
 
+NEAR_PCT = 3.0  # 「接近」門檻:距目標 3% 以內
+
+# 狀態階梯(rank 越大越接近可行動)
+STATUS = {
+    0: ("watching", "⚪ 觀察中"),
+    1: ("near_gate1", "🟡 接近第一道門"),
+    2: ("gate1_passed", "🔵 通過第一道門"),
+    3: ("near_trigger", "🟠 逼近扣扳機"),
+    4: ("triggered", "🟢 已突破"),
+}
+
+
+def classify(above_ma200: bool, pct_vs_ma200: float, pct_to_55d_high: float) -> dict:
+    if not above_ma200:
+        rank = 1 if pct_vs_ma200 >= -NEAR_PCT else 0
+    elif pct_to_55d_high >= 0:
+        rank = 4
+    elif pct_to_55d_high >= -NEAR_PCT:
+        rank = 3
+    else:
+        rank = 2
+    key, label = STATUS[rank]
+    return {"status": key, "status_label": label, "status_rank": rank}
+
+
 def _trend_status(ticker: str) -> dict | None:
     try:
         df = fetch_ohlcv(ticker, lookback_days=400)
@@ -42,12 +67,16 @@ def _trend_status(ticker: str) -> dict | None:
         ma200 = close.rolling(200).mean().iloc[-1]
         hi55 = close.rolling(55).max().iloc[-1]
         last = close.iloc[-1]
+        above = bool(last > ma200)
+        vs_ma = round(float(last / ma200 - 1) * 100, 1)
+        to_hi = round(float(last / hi55 - 1) * 100, 1)
         return {
             "ticker": ticker,
             "price": round(float(last), 2),
-            "above_ma200": bool(last > ma200),
-            "pct_vs_ma200": round(float(last / ma200 - 1) * 100, 1),
-            "pct_to_55d_high": round(float(last / hi55 - 1) * 100, 1),
+            "above_ma200": above,
+            "pct_vs_ma200": vs_ma,
+            "pct_to_55d_high": to_hi,
+            **classify(above, vs_ma, to_hi),
         }
     except Exception:
         return None
@@ -71,10 +100,12 @@ def _ratio_status(num: str, den: str) -> dict | None:
 
 
 def watch() -> dict:
+    items = [
+        {**s, "label": WATCHLIST[t]}
+        for t in WATCHLIST if (s := _trend_status(t))
+    ]
+    items.sort(key=lambda w: -w["status_rank"])  # 越接近可行動排越前
     return {
         "ratios": [r for p in RATIO_PAIRS if (r := _ratio_status(*p))],
-        "watchlist": [
-            {**s, "label": WATCHLIST[t]}
-            for t in WATCHLIST if (s := _trend_status(t))
-        ],
+        "watchlist": items,
     }
