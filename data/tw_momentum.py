@@ -69,6 +69,45 @@ def update_tracking(picks: list[dict]) -> bool:
     return True
 
 
+# 歷史狀態分桶統計(2010-2026 回測,2026-07-10 計算;M5-150 規則)
+# 桶 = 0050 近12月報酬四分位;值 = (下一季平均報酬%, 勝率%)
+HEAT_BUCKETS = [
+    (0.03, "冷", 10.1, 81),     # 12月報酬 < +3%
+    (0.135, "溫", 5.8, 73),     # +3% ~ +13%
+    (0.275, "熱", 4.6, 67),     # +14% ~ +27%
+    (float("inf"), "極熱", 11.9, 75),  # > +28%
+]
+REGIME_STATS = {True: (8.5, 80), False: (6.9, 54)}  # 0050 vs 200MA
+
+
+def market_state() -> dict | None:
+    """今日市場狀態 + 歷史同狀態的下一季統計(供週報一行摘要)。"""
+    try:
+        b50 = yf.download("0050.TW", period="2y", auto_adjust=True,
+                          progress=False)["Close"]
+        if isinstance(b50, pd.DataFrame):
+            b50 = b50.iloc[:, 0]
+        ret = b50.pct_change()
+        b50 = (1 + ret.mask(ret.abs() > 0.11, 0.0).fillna(0.0)).cumprod() * float(b50.iloc[0])
+        ma200 = b50.rolling(200).mean().iloc[-1]
+        heat = float(b50.iloc[-1] / b50.iloc[-252] - 1)
+        regime_on = bool(b50.iloc[-1] > ma200)
+        bucket = next(b for b in HEAT_BUCKETS if heat < b[0])
+        r_avg, r_win = REGIME_STATS[regime_on]
+        return {
+            "regime_on": regime_on,
+            "pct_vs_ma200": round(float(b50.iloc[-1] / ma200 - 1) * 100, 1),
+            "heat_12m_pct": round(heat * 100, 0),
+            "bucket": bucket[1],
+            "bucket_next_q_avg": bucket[2],
+            "bucket_win_rate": bucket[3],
+            "regime_next_q_avg": r_avg,
+            "regime_win_rate": r_win,
+        }
+    except Exception:
+        return None
+
+
 def forward_performance() -> dict | None:
     """以歷史快照重算前瞻績效(等權、季調倉、含成本)vs 0050。"""
     if not TRACK_PATH.exists():

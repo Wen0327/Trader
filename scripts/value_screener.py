@@ -62,5 +62,15 @@ if __name__ == "__main__":
     if perf and perf["n_rebalances"] > 1:
         lines.append(f"前瞻績效(自 {perf['since']}):策略 {perf['strategy_pct']:+}% "
                      f"vs 0050 {perf['bench_0050_pct']:+}%")
+
+    from data.tw_momentum import market_state
+    state = market_state()
+    if state:
+        result["market_state"] = state
+        lines.append(
+            f"市場狀態:0050 {'🟢' if state['regime_on'] else '🔴'} 200MA "
+            f"{state['pct_vs_ma200']:+}%・近12月 {state['heat_12m_pct']:+.0f}%"
+            f"({state['bucket']})→ 歷史同狀態下一季:"
+            f"平均 {state['bucket_next_q_avg']:+}%・勝率 {state['bucket_win_rate']}%")
     send("\n".join(lines))
     print(f"報告: {out}")
