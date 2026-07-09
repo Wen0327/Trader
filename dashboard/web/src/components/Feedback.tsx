@@ -9,3 +9,12 @@ export function Loading() {
 export function Empty({ msg }: { msg: string }) {
   return <p className="muted">{msg}</p>;
 }
+
+export function InfoTip({ text }: { text: string }) {
+  return (
+    <span className="info-tip" tabIndex={0}>
+      ⓘ
+      <span className="info-tip-bubble">{text}</span>
+    </span>
+  );
+}
