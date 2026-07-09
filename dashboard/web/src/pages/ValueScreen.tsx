@@ -14,7 +14,7 @@ export function ValueScreen() {
     <>
       <h2>
         台股動量模型
-        <InfoTip text="✅ = 12-1月截面動量 TOP10(季調倉)。回測 2010-2026 大勝 0050(鄰域12/12、雙子區段皆勝),生存者偏差無法量化 → 前瞻追蹤中,逐季對帳。財報欄位為參考資訊,不參與選股" />
+        <InfoTip text="✅ = 12-1月截面動量 TOP10,剔除動量>150% 的極端拋物線(防動量崩潰,回測回撤 -40.6%→-37.7%、Sharpe 1.22→1.28)。季調倉,前瞻追蹤中逐季對帳。財報欄位為參考資訊,不參與選股" />
       </h2>
       <p className="muted">
         更新:{fmtTs(data.scanned_at)}|通過 {data.rows.filter((r) => r.passed).length}

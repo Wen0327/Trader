@@ -20,6 +20,10 @@ from data.value_screen import UNIVERSE
 TRACK_PATH = Path(__file__).resolve().parent.parent / "storage" / "tw_momentum_track.json"
 LOOKBACK, SKIP, TOP_N = 252, 21, 10
 REBALANCE_COST = 0.004
+# 極端動量剔除(M5,2026-07-10 採用):12-1 動量 > 150% 不選。
+# 驗證:回撤 -40.6%→-37.7%、Sharpe 1.22→1.28,鄰域 100~500% 全域不傷;
+# 高 cap(≥250%)無回撤改善 → 150% 是對治動量崩潰的對症劑量。
+MOM_CAP = 1.5
 
 
 def _clean_returns(adj: pd.DataFrame) -> pd.DataFrame:
@@ -39,7 +43,8 @@ def momentum_all() -> dict[str, float]:
 
 def current_picks(momentum: dict[str, float] | None = None) -> list[dict]:
     momentum = momentum or momentum_all()
-    top = sorted(momentum.items(), key=lambda kv: -kv[1])[:TOP_N]
+    eligible = {t: m for t, m in momentum.items() if m <= MOM_CAP * 100}
+    top = sorted(eligible.items(), key=lambda kv: -kv[1])[:TOP_N]
     return [
         {"ticker": t, "name": UNIVERSE[t], "momentum_pct": m}
         for t, m in top
