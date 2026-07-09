@@ -1,9 +1,9 @@
 import { useState } from "react";
 import {
-  ComposedChart, Legend, Line, LineChart, ResponsiveContainer, Scatter,
-  Tooltip, XAxis, YAxis,
+  Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { fetchRotation, fetchRotationTicker } from "../api";
+import { CandleChart } from "../components/CandleChart";
 import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
 import { StatusBadge } from "../components/StatusBadge";
 import { useLoad } from "../hooks/useLoad";
@@ -99,27 +99,10 @@ function TickerChart({ ticker }: { ticker: string }) {
         </label>
       </h2>
       <div style={{ opacity: fetching ? 0.45 : 1, transition: "opacity 0.15s" }}>
-        <ResponsiveContainer width="100%" height={300}>
-          <ComposedChart data={data.series}>
-            <XAxis dataKey="date" minTickGap={70} />
-            <YAxis domain={["auto", "auto"]} width={62} />
-            <Tooltip />
-            <Legend />
-            <Line name="收盤價" dataKey="close" dot={false} stroke="#4f9cf9" strokeWidth={1.8} isAnimationActive={false} />
-            <Line name="200MA" dataKey="ma200" dot={false} stroke="#f0b429" strokeWidth={1.2} isAnimationActive={false} />
-            <Line name="55日高" dataKey="hi55" dot={false} stroke="#38c172" strokeWidth={1} strokeDasharray="4 3" isAnimationActive={false} />
-            <Line name="20日低(出場線)" dataKey="lo20" dot={false} stroke="#e3546c" strokeWidth={1} strokeDasharray="4 3" isAnimationActive={false} />
-            {showBreakouts && (
-              <Scatter
-                name="突破日"
-                dataKey="breakout"
-                fill="#38c172"
-                shape="triangle"
-                isAnimationActive={false}
-              />
-            )}
-          </ComposedChart>
-        </ResponsiveContainer>
+        <CandleChart data={data} showBreakouts={showBreakouts} />
+        <p className="muted chart-legend">
+          黃線 200MA ｜ 綠虛線 55日高(進場)｜ 紅虛線 20日低(出場)｜ ▲ 歷史突破日
+        </p>
       </div>
     </>
   );

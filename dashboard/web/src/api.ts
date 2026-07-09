@@ -111,11 +111,14 @@ export type TickerSeries = {
   label: string;
   series: {
     date: string;
+    open: number;
+    high: number;
+    low: number;
     close: number;
     ma200: number | null;
     hi55: number | null;
     lo20: number | null;
-    breakout: number | null; // 突破日 = 當日收盤價,非突破日 = null
+    breakout: boolean;
   }[];
 };
 

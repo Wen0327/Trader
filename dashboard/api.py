@@ -156,7 +156,8 @@ class RotationService:
             raise KeyError(ticker)
 
         def build():
-            close = fetch_ohlcv(ticker, lookback_days=730)["close"]
+            df = fetch_ohlcv(ticker, lookback_days=730)
+            close = df["close"]
             ma200 = close.rolling(200).mean()
             hi55 = close.rolling(55).max()
             lo20 = close.rolling(20).min()
@@ -166,13 +167,17 @@ class RotationService:
                 "label": WATCHLIST[ticker],
                 "series": [
                     {"date": d.strftime("%Y-%m-%d"),
+                     "open": round(float(o), 2),
+                     "high": round(float(h_), 2),
+                     "low": round(float(l_), 2),
                      "close": round(float(c), 2),
                      "ma200": round(float(m), 2) if m == m else None,
                      "hi55": round(float(h), 2) if h == h else None,
                      "lo20": round(float(lo), 2) if lo == lo else None,
-                     "breakout": round(float(c), 2) if b else None}
-                    for d, c, m, h, lo, b in zip(
-                        close.index, close, ma200, hi55, lo20, breakout)
+                     "breakout": bool(b)}
+                    for d, o, h_, l_, c, m, h, lo, b in zip(
+                        close.index, df["open"], df["high"], df["low"], close,
+                        ma200, hi55, lo20, breakout)
                 ],
             }
         return self._cached(f"ticker:{ticker}", build)

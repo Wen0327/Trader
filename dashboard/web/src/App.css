@@ -107,6 +107,7 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
   font-weight: 400;
 }
 .toggle input { accent-color: var(--accent); cursor: pointer; }
+.chart-legend { font-size: 12px; margin-top: 6px; }
 
 .chart-row { display: flex; gap: 20px; flex-wrap: wrap; }
 .chart-half { flex: 1; min-width: 420px; }
