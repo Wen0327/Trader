@@ -62,6 +62,7 @@ def market_snapshot() -> tuple[dict[str, float], dict[str, dict]]:
                       progress=False)["Close"]
     ret = adj.pct_change().fillna(0.0)
     clean = (1 + ret.mask(ret.abs() > CLEAN_LIMIT, 0.0)).cumprod()
+    clean = clean.mask(adj.isna())  # 上市前空白不得偽造平線歷史(SPCX 教訓)
     momentum = (clean.shift(SKIP) / clean.shift(LOOKBACK) - 1).iloc[-1].dropna()
 
     hi20 = clean.rolling(20).max().iloc[-1]

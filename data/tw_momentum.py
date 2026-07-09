@@ -42,6 +42,7 @@ def market_snapshot() -> tuple[dict[str, float], dict[str, dict]]:
     adj = yf.download(tickers, period="2y", auto_adjust=True,
                       progress=False)["Close"]
     clean = (1 + _clean_returns(adj)).cumprod()
+    clean = clean.mask(adj.isna())  # 上市前空白不得偽造平線歷史
     momentum = (clean.shift(SKIP) / clean.shift(LOOKBACK) - 1).iloc[-1].dropna()
 
     hi20 = clean.rolling(20).max().iloc[-1]
