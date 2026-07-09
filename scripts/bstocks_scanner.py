@@ -95,6 +95,16 @@ def enrich_with_news(report: dict) -> int:
 
     from data.rotation import watch
     report["rotation"] = watch()
+
+    # 狀態變遷 → Discord 通知(首次執行只存基準)
+    from monitoring.notify import send
+    from monitoring.transitions import detect
+    events = detect(report["rotation"])
+    if events:
+        from datetime import datetime, timezone
+        header = f"📡 **輪動監控** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC"
+        send("\n".join([header, *events]))
+        report["events"] = events
     return added
 
 

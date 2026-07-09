@@ -109,9 +109,21 @@ def _trend_status(ticker: str) -> dict | None:
                 "entry_date": entries.index[-1].strftime("%Y-%m-%d") if len(entries) else None,
             }
 
+        # K 棒解剖(最新一根):實體佔比、收盤位置、量能倍數 — 純算術,供通知描述
+        o, h, l, v = (df[c].iloc[-1] for c in ("open", "high", "low", "volume"))
+        rng = float(h - l) or 1e-9
+        vol_ma20 = float(df["volume"].rolling(20).mean().iloc[-1]) or 1e-9
+        bar = {
+            "body_pct": round(abs(float(last - o)) / rng * 100),
+            "close_pos": round(float(last - l) / rng * 100),
+            "vol_mult": round(float(v) / vol_ma20, 1),
+            "up": bool(last >= o),
+        }
+
         result = {
             "ticker": ticker,
             "price": round(float(last), 2),
+            "bar": bar,
             "above_ma200": above,
             "pct_vs_ma200": vs_ma,
             "pct_to_55d_high": to_hi,
