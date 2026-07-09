@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BacktestPage } from "./pages/BacktestPage";
 import { Overview } from "./pages/Overview";
+import { Rotation } from "./pages/Rotation";
 import { Scanner } from "./pages/Scanner";
 import { Trades } from "./pages/Trades";
 import "./App.css";
@@ -9,6 +10,7 @@ const TABS = {
   總覽: Overview,
   交易: Trades,
   掃描: Scanner,
+  輪動: Rotation,
   回測: BacktestPage,
 } as const;
 type Tab = keyof typeof TABS;

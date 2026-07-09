@@ -82,6 +82,26 @@ export const fetchStatus = () => get<Status>("/api/status");
 export const fetchFng = () => get<FearGreed>("/api/fng");
 export const fetchEquity = () => get<EquityPoint[]>("/api/equity");
 export const fetchTrades = () => get<Trade[]>("/api/trades");
+export type RatioHistory = {
+  pair: string;
+  rotation_on: boolean;
+  history: { date: string; ratio: number; ma200: number | null }[];
+};
+
+export type Rotation = {
+  ratios: RatioHistory[];
+  watchlist: WatchItem[];
+};
+
+export type TickerSeries = {
+  ticker: string;
+  label: string;
+  series: { date: string; close: number; ma200: number | null; hi55: number | null }[];
+};
+
 export const fetchScan = () => get<Scan>("/api/scan");
+export const fetchRotation = () => get<Rotation>("/api/rotation");
+export const fetchRotationTicker = (symbol: string) =>
+  get<TickerSeries>(`/api/rotation/ticker?symbol=${encodeURIComponent(symbol)}`);
 export const fetchBacktest = (symbol: string) =>
   get<Backtest>(`/api/backtest?symbol=${encodeURIComponent(symbol)}`);

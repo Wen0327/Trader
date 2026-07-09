@@ -100,6 +100,72 @@ class ScanStore:
         return json.loads(files[-1].read_text())
 
 
+class RotationService:
+    """輪動數據:比值歷史與單檔序列(yfinance,1 小時 TTL 快取)。"""
+
+    TTL = 3600
+
+    def __init__(self):
+        self._cache: dict[str, tuple[float, object]] = {}
+
+    def _cached(self, key: str, builder):
+        import time
+        hit = self._cache.get(key)
+        if hit and time.time() - hit[0] < self.TTL:
+            return hit[1]
+        value = builder()
+        self._cache[key] = (time.time(), value)
+        return value
+
+    def ratio_histories(self) -> list[dict]:
+        from data.rotation import RATIO_PAIRS
+        from data.yahoo_feed import fetch_ohlcv
+
+        def build():
+            out = []
+            for num, den in RATIO_PAIRS:
+                a = fetch_ohlcv(num, lookback_days=730)["close"]
+                b = fetch_ohlcv(den, lookback_days=730)["close"]
+                ratio = (a / b).dropna()
+                ma200 = ratio.rolling(200).mean()
+                out.append({
+                    "pair": f"{num}/{den}",
+                    "rotation_on": bool(ratio.iloc[-1] > ma200.iloc[-1]),
+                    "history": [
+                        {"date": d.strftime("%Y-%m-%d"),
+                         "ratio": round(float(r), 4),
+                         "ma200": round(float(m), 4) if m == m else None}
+                        for d, r, m in zip(ratio.index, ratio, ma200)
+                    ],
+                })
+            return out
+        return self._cached("ratios", build)
+
+    def ticker_series(self, ticker: str) -> dict:
+        from data.rotation import WATCHLIST
+        from data.yahoo_feed import fetch_ohlcv
+
+        if ticker not in WATCHLIST:
+            raise KeyError(ticker)
+
+        def build():
+            close = fetch_ohlcv(ticker, lookback_days=730)["close"]
+            ma200 = close.rolling(200).mean()
+            hi55 = close.rolling(55).max()
+            return {
+                "ticker": ticker,
+                "label": WATCHLIST[ticker],
+                "series": [
+                    {"date": d.strftime("%Y-%m-%d"),
+                     "close": round(float(c), 2),
+                     "ma200": round(float(m), 2) if m == m else None,
+                     "hi55": round(float(h), 2) if h == h else None}
+                    for d, c, m, h in zip(close.index, close, ma200, hi55)
+                ],
+            }
+        return self._cached(f"ticker:{ticker}", build)
+
+
 class BacktestService:
     """即時計算 Donchian vs B&H。策略/引擎複用主系統模組。"""
 
@@ -128,6 +194,7 @@ state_store = StateStore(ROOT / "storage" / "bot_state.json")
 futures_state_store = StateStore(ROOT / "storage" / "futures_state.json")
 scan_store = ScanStore(ROOT / "reports")
 backtest_service = BacktestService()
+rotation_service = RotationService()
 
 app = FastAPI(title="Trader Dashboard API")
 app.add_middleware(
@@ -179,6 +246,27 @@ def latest_scan():
         return scan_store.latest()
     except FileNotFoundError as e:
         raise HTTPException(404, str(e))
+
+
+@app.get("/api/rotation")
+def rotation():
+    """比值歷史(即時,快取)+ 候選人狀態(取自每日掃描報告,秒開)。"""
+    try:
+        watchlist = scan_store.latest().get("rotation", {}).get("watchlist", [])
+    except FileNotFoundError:
+        watchlist = []
+    return {
+        "ratios": rotation_service.ratio_histories(),
+        "watchlist": watchlist,
+    }
+
+
+@app.get("/api/rotation/ticker")
+def rotation_ticker(symbol: str):
+    try:
+        return rotation_service.ticker_series(symbol)
+    except KeyError:
+        raise HTTPException(404, f"{symbol} 不在觀察清單")
 
 
 @app.get("/api/backtest")
