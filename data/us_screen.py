@@ -45,10 +45,25 @@ UNIVERSE = {
     "CAT": "開拓重工", "DE": "迪爾", "BA": "波音", "GE": "奇異",
     "HON": "漢威", "LMT": "洛克希德", "RTX": "雷神", "UNP": "聯合太平洋",
     "XOM": "埃克森", "CVX": "雪佛龍", "COP": "康菲",
+    # 太空
+    "SPCX": "SpaceX", "RKLB": "Rocket Lab", "ASTS": "AST SpaceMobile",
+    "LUNR": "Intuitive Machines",
+    # 能源/AI 電力
+    "CEG": "Constellation", "VST": "Vistra", "GEV": "GE Vernova",
+    "OKLO": "Oklo", "SMR": "NuScale", "CCJ": "Cameco",
     # 其他
     "LIN": "林德", "NEE": "新世代能源", "TMUS": "T-Mobile",
     "PYPL": "PayPal", "COIN": "Coinbase", "MSTR": "MicroStrategy",
-    "SPCX": "SpaceX",
+}
+
+# T2 二線(同板塊次強代表,預設不顯示但保留追蹤);其餘為 T1 精華
+TIER2 = {
+    "WFC", "C", "MS", "SCHW", "AXP",
+    "PFE", "MRK", "ABT", "AMGN",
+    "PEP", "LOW", "SBUX", "NKE",
+    "UNP", "HON", "RTX", "DE",
+    "COP", "NEE", "LIN", "TMUS",
+    "IBM", "TXN", "KLAC", "DDOG", "NET", "WDAY",
 }
 
 LOOKBACK, SKIP = 252, 21

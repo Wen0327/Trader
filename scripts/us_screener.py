@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from data.us_screen import UNIVERSE, market_snapshot, spy_state
+from data.us_screen import TIER2, UNIVERSE, market_snapshot, spy_state
 from data.value_screen import fetch_metrics
 from monitoring.notify import send
 
@@ -26,6 +26,7 @@ if __name__ == "__main__":
         if m is None:
             continue
         m["name"] = name
+        m["tier"] = 2 if ticker in TIER2 else 1
         m["momentum_pct"] = momentum.get(ticker)
         t = tech.get(ticker)
         if t:

@@ -15,14 +15,18 @@ export function UsScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [desc, setDesc] = useState(true);
+  const [tier, setTier] = useState<1 | 2 | 0>(1); // 0 = 全部
 
   const rows = useMemo(() => {
     if (!data) return [];
-    if (!sortKey) return data.rows; // 預設:動量遞減(伺服器排序)
+    const filtered = tier === 0
+      ? data.rows
+      : data.rows.filter((r) => (r.tier ?? 1) === tier);
+    if (!sortKey) return filtered; // 預設:動量遞減(伺服器排序)
     const val = (r: ValueRow) => r[sortKey] ?? -Infinity;
-    return [...data.rows].sort((a, b) =>
+    return [...filtered].sort((a, b) =>
       desc ? Number(val(b)) - Number(val(a)) : Number(val(a)) - Number(val(b)));
-  }, [data, sortKey, desc]);
+  }, [data, sortKey, desc, tier]);
 
   const onSort = (k: SortKey) => {
     if (sortKey === k) {
@@ -42,7 +46,16 @@ export function UsScreen() {
         美股研究瀏覽
         <InfoTip text="精選 ~85 檔各板塊龍頭。研究工具 — 無模型選股欄:美股截面動量已回測否決(前AI時代與 SPY 平手),故只給數據不掛招牌。每週更新" />
       </h2>
-      <p className="muted">更新:{fmtTs(data.scanned_at)}|{data.fetched} 檔</p>
+      <div className="toolbar">
+        {([[1, "T1 精華"], [2, "T2 二線"], [0, "全部"]] as const).map(([v, label]) => (
+          <button key={v} className={tier === v ? "active" : ""} onClick={() => setTier(v)}>
+            {label}
+          </button>
+        ))}
+        <span className="muted">
+          更新:{fmtTs(data.scanned_at)}|顯示 {rows.length}/{data.fetched} 檔
+        </span>
+      </div>
 
       {s && (
         <div className="cards">

@@ -143,6 +143,7 @@ export type ValueRow = {
   picked?: boolean;         // ✅ = 動量 TOP10 成員
   range_pos_20d?: number;   // 20日區間位置 0~100
   zone?: "pullback" | "mid" | "high";
+  tier?: 1 | 2;             // 美股池分層:1 精華 / 2 二線
 };
 
 export type MomentumPick = {
