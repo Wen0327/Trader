@@ -40,10 +40,6 @@ if __name__ == "__main__":
         "performance": forward_performance(),
     }
 
-    REPORTS_DIR.mkdir(exist_ok=True)
-    out = REPORTS_DIR / f"value_screen_{datetime.now(timezone.utc):%Y-%m-%d}.json"
-    out.write_text(json.dumps(result, ensure_ascii=False, indent=1))
-
     m = result["momentum"]
     picked_rows = [r for r in result["rows"] if r["picked"]]
     print(f"股票池 {result['universe_size']} 檔,動量 TOP{len(picked_rows)} 已選")
@@ -74,5 +70,11 @@ if __name__ == "__main__":
             f"{state['pct_vs_ma200']:+}%・近12月 {state['heat_12m_pct']:+.0f}%"
             f"({state['bucket']})→ 歷史同狀態下一季:"
             f"平均 {state['bucket_next_q_avg']:+}%・勝率 {state['bucket_win_rate']}%")
+
+    # 報告落地必須在所有欄位(含 market_state)就緒之後
+    REPORTS_DIR.mkdir(exist_ok=True)
+    out = REPORTS_DIR / f"value_screen_{datetime.now(timezone.utc):%Y-%m-%d}.json"
+    out.write_text(json.dumps(result, ensure_ascii=False, indent=1))
+
     send("\n".join(lines))
     print(f"報告: {out}")
