@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import pandas as pd
+
 from data.yahoo_feed import fetch_ohlcv
 
 # 比值:分子強於分母且比值站上 200MA = 輪動啟動
@@ -60,6 +62,9 @@ def classify(above_ma200: bool, pct_vs_ma200: float, pct_to_55d_high: float) -> 
     return {"status": key, "status_label": label, "status_rank": rank}
 
 
+TRIGGER_LOOKBACK_DAYS = 30  # 「曾突破」回看窗口(日曆日)
+
+
 def _trend_status(ticker: str) -> dict | None:
     try:
         df = fetch_ohlcv(ticker, lookback_days=400)
@@ -70,12 +75,21 @@ def _trend_status(ticker: str) -> dict | None:
         above = bool(last > ma200)
         vs_ma = round(float(last / ma200 - 1) * 100, 1)
         to_hi = round(float(last / hi55 - 1) * 100, 1)
+
+        # 回看:近 30 天內曾收盤突破「當日之前的 55 日高」的最後一天
+        breakout_days = close > close.rolling(55).max().shift(1)
+        cutoff = close.index[-1] - pd.Timedelta(days=TRIGGER_LOOKBACK_DAYS)
+        recent = breakout_days[(breakout_days) & (breakout_days.index >= cutoff)]
+        last_trigger = recent.index[-1] if len(recent) else None
+
         return {
             "ticker": ticker,
             "price": round(float(last), 2),
             "above_ma200": above,
             "pct_vs_ma200": vs_ma,
             "pct_to_55d_high": to_hi,
+            "last_trigger_date": last_trigger.strftime("%Y-%m-%d") if last_trigger is not None else None,
+            "days_since_trigger": int((close.index[-1] - last_trigger).days) if last_trigger is not None else None,
             **classify(above, vs_ma, to_hi),
         }
     except Exception:

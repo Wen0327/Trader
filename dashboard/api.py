@@ -159,6 +159,7 @@ class RotationService:
             close = fetch_ohlcv(ticker, lookback_days=730)["close"]
             ma200 = close.rolling(200).mean()
             hi55 = close.rolling(55).max()
+            breakout = close > hi55.shift(1)  # 突破「當日之前」的 55 日高
             return {
                 "ticker": ticker,
                 "label": WATCHLIST[ticker],
@@ -166,8 +167,9 @@ class RotationService:
                     {"date": d.strftime("%Y-%m-%d"),
                      "close": round(float(c), 2),
                      "ma200": round(float(m), 2) if m == m else None,
-                     "hi55": round(float(h), 2) if h == h else None}
-                    for d, c, m, h in zip(close.index, close, ma200, hi55)
+                     "hi55": round(float(h), 2) if h == h else None,
+                     "breakout": round(float(c), 2) if b else None}
+                    for d, c, m, h, b in zip(close.index, close, ma200, hi55, breakout)
                 ],
             }
         return self._cached(f"ticker:{ticker}", build)

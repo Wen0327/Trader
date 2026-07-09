@@ -60,6 +60,8 @@ export type WatchItem = {
   status?: "watching" | "near_gate1" | "gate1_passed" | "near_trigger" | "triggered";
   status_label?: string;
   status_rank?: number;
+  last_trigger_date?: string | null;
+  days_since_trigger?: number | null;
 };
 
 export type Scan = {
@@ -103,7 +105,13 @@ export type Rotation = {
 export type TickerSeries = {
   ticker: string;
   label: string;
-  series: { date: string; close: number; ma200: number | null; hi55: number | null }[];
+  series: {
+    date: string;
+    close: number;
+    ma200: number | null;
+    hi55: number | null;
+    breakout: number | null; // 突破日 = 當日收盤價,非突破日 = null
+  }[];
 };
 
 export const fetchScan = () => get<Scan>("/api/scan");

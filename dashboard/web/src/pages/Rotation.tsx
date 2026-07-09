@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
-  Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  ComposedChart, Legend, Line, LineChart, ResponsiveContainer, Scatter,
+  Tooltip, XAxis, YAxis,
 } from "recharts";
 import { fetchRotation, fetchRotationTicker } from "../api";
 import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
@@ -73,17 +74,26 @@ function TickerChart({ ticker }: { ticker: string }) {
   const { data, error, fetching } = useLoad(
     () => fetchRotationTicker(ticker), [ticker], { keepPrevious: true },
   );
+  const [showBreakouts, setShowBreakouts] = useState(true);
   if (error) return <ErrorBox msg={error} />;
   if (!data) return <Loading />;
   return (
     <>
       <h2>
         {ticker} — {data.ticker === ticker ? data.label : "載入中…"}
-        <InfoTip text="兩道確認門:站上 200MA(黃線)= 有資格考慮;突破 55 日高(綠虛線)= 扣扳機,趨勢確立" />
+        <InfoTip text="兩道確認門:站上 200MA(黃線)= 有資格考慮;突破 55 日高(綠虛線)= 扣扳機,趨勢確立。綠色三角 = 歷史上收盤突破 55 日高的日子" />
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={showBreakouts}
+            onChange={(e) => setShowBreakouts(e.target.checked)}
+          />
+          突破標記
+        </label>
       </h2>
       <div style={{ opacity: fetching ? 0.45 : 1, transition: "opacity 0.15s" }}>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data.series}>
+          <ComposedChart data={data.series}>
             <XAxis dataKey="date" minTickGap={70} />
             <YAxis domain={["auto", "auto"]} width={62} />
             <Tooltip />
@@ -91,7 +101,16 @@ function TickerChart({ ticker }: { ticker: string }) {
             <Line name="收盤價" dataKey="close" dot={false} stroke="#4f9cf9" strokeWidth={1.8} isAnimationActive={false} />
             <Line name="200MA" dataKey="ma200" dot={false} stroke="#f0b429" strokeWidth={1.2} isAnimationActive={false} />
             <Line name="55日高" dataKey="hi55" dot={false} stroke="#38c172" strokeWidth={1} strokeDasharray="4 3" isAnimationActive={false} />
-          </LineChart>
+            {showBreakouts && (
+              <Scatter
+                name="突破日"
+                dataKey="breakout"
+                fill="#38c172"
+                shape="triangle"
+                isAnimationActive={false}
+              />
+            )}
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </>

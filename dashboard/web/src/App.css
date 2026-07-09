@@ -91,6 +91,14 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
   color: var(--good); border-color: #38c17266; background: #38c17218;
   font-weight: 600;
 }
+.badge-retreat { color: #b48ce0; border-color: #b48ce044; margin-left: 6px; }
+
+.toggle {
+  margin-left: 14px; font-size: 12px; color: var(--muted);
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  font-weight: 400;
+}
+.toggle input { accent-color: var(--accent); cursor: pointer; }
 
 .chart-row { display: flex; gap: 20px; flex-wrap: wrap; }
 .chart-half { flex: 1; min-width: 420px; }
