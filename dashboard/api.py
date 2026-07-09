@@ -48,9 +48,16 @@ class BotLogParser:
     def _track(m: re.Match) -> str:
         return "futures" if m["track"] else "spot"
 
+    @staticmethod
+    def _to_utc(ts: str) -> str:
+        """log 時間戳為本地時間 → 統一輸出 UTC(API 全域慣例)。"""
+        from datetime import datetime, timezone
+        naive = datetime.strptime(ts.split(",")[0], "%Y-%m-%d %H:%M:%S")
+        return naive.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
     def equity_points(self, track: str = "spot") -> list[dict]:
         return [
-            {"ts": m["ts"], "equity": float(m["equity"])}
+            {"ts": self._to_utc(m["ts"]), "equity": float(m["equity"])}
             for line in self._lines()
             if (m := self.EQUITY_RE.match(line)) and self._track(m) == track
         ]
@@ -61,14 +68,14 @@ class BotLogParser:
                 return {
                     "equity": float(m["equity"]),
                     "kill_switch": m["ks"] == "True",
-                    "updated_at": m["ts"],
+                    "updated_at": self._to_utc(m["ts"]),
                 }
         return None
 
     def trades(self) -> list[dict]:
         return [
             {
-                "ts": m["ts"],
+                "ts": self._to_utc(m["ts"]),
                 "track": self._track(m),
                 "symbol": m["symbol"].rstrip(":"),
                 "side": self.SIDE[m["action"]],

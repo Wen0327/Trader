@@ -9,7 +9,7 @@ export function Scanner() {
 
   return (
     <>
-      <p className="muted">掃描時間:{fmtTs(data.scanned_at)} UTC</p>
+      <p className="muted">掃描時間:{fmtTs(data.scanned_at)}</p>
       {data.crypto_sentiment && (
         <p>
           Crypto 情緒:

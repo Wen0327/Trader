@@ -1,10 +1,14 @@
 const BASE = "http://localhost:8787";
 
-/** 任意時間戳 → "YYYY-MM-DD HH:mm:ss"。
- *  支援 log 格式 "…16:00:50,272" 與 ISO "…T13:00:52.123456+00:00"。 */
+/** API 時間戳(一律 UTC)→ 本地時間 "YYYY-MM-DD HH:mm:ss" 顯示。
+ *  支援 "YYYY-MM-DD HH:mm:ss" 與 ISO 格式。 */
 export const fmtTs = (ts: string | null | undefined) => {
   const m = ts?.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})/);
-  return m ? `${m[1]} ${m[2]}` : ts ?? "—";
+  if (!m) return ts ?? "—";
+  const d = new Date(`${m[1]}T${m[2]}Z`); // API 慣例:無時區標記即 UTC
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
+         `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 };
 
 export type TrackStatus = {
