@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Quotes, ValueRow } from "../api";
-import { fetchChart, fetchQuotes, fetchUsScreen, fmtTs } from "../api";
+import {
+  fetchChart, fetchQuotes, fetchStarred, fetchUsScreen, fmtTs, saveStarred,
+} from "../api";
 import { CandleChart } from "../components/CandleChart";
 import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
@@ -80,6 +82,13 @@ export function UsScreen() {
     return new Set();
   });
 
+  // 伺服器為真相來源(系統端讀得到);localStorage 僅離線備援
+  useEffect(() => {
+    fetchStarred("us")
+      .then((r) => setStarred(new Set(r.tickers)))
+      .catch(() => { /* API 不在線時沿用 localStorage */ });
+  }, []);
+
   useEffect(() => {
     localStorage.setItem(LS_STAR, JSON.stringify([...starred]));
   }, [starred]);
@@ -89,6 +98,7 @@ export function UsScreen() {
       const next = new Set(prev);
       if (next.has(t)) next.delete(t);
       else next.add(t);
+      saveStarred("us", [...next]).catch(() => { /* 離線時下次同步 */ });
       return next;
     });
   };

@@ -220,7 +220,8 @@ app = FastAPI(title="Trader Dashboard API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],  # Vite dev server
-    allow_methods=["GET"],
+    # 唯讀原則指「無交易操作端點」;PUT 僅用於使用者偏好(精選名單)儲存
+    allow_methods=["GET", "PUT"],
     allow_headers=["*"],
 )
 
@@ -363,6 +364,39 @@ def quotes(market: str = "us"):
     if market not in ("us", "tw"):
         raise HTTPException(400, "market 須為 us 或 tw")
     return quote_service.quotes(market)
+
+
+STARRED_PATH = ROOT / "storage" / "starred.json"
+
+
+def _read_starred() -> dict:
+    if STARRED_PATH.exists():
+        return json.loads(STARRED_PATH.read_text())
+    return {}
+
+
+@app.get("/api/starred")
+def get_starred(market: str = "us"):
+    return {"tickers": _read_starred().get(market, [])}
+
+
+@app.put("/api/starred")
+def put_starred(body: dict):
+    market = body.get("market")
+    tickers = body.get("tickers")
+    if market not in ("us", "tw") or not isinstance(tickers, list):
+        raise HTTPException(400, "需要 market(us/tw)與 tickers 列表")
+    # 白名單驗證:只接受池內代號
+    if market == "us":
+        from data.us_screen import UNIVERSE
+    else:
+        from data.value_screen import UNIVERSE
+    tickers = [t for t in tickers if t in UNIVERSE]
+    data = _read_starred()
+    data[market] = sorted(set(tickers))
+    STARRED_PATH.parent.mkdir(exist_ok=True)
+    STARRED_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=1))
+    return {"tickers": data[market]}
 
 
 @app.get("/api/backtest")

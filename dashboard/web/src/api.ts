@@ -208,6 +208,15 @@ export const fetchValueScreen = () => get<ValueScreenReport>("/api/value-screen"
 export const fetchUsScreen = () => get<UsScreenReport>("/api/us-screen");
 export const fetchQuotes = (market: "us" | "tw") =>
   get<Quotes>(`/api/quotes?market=${market}`);
+export const fetchStarred = (market: "us" | "tw") =>
+  get<{ tickers: string[] }>(`/api/starred?market=${market}`);
+export const saveStarred = async (market: "us" | "tw", tickers: string[]) => {
+  await fetch(`${BASE}/api/starred`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ market, tickers }),
+  });
+};
 export const fetchRotation = () => get<Rotation>("/api/rotation");
 export const fetchRotationTicker = (symbol: string) =>
   get<TickerSeries>(`/api/rotation/ticker?symbol=${encodeURIComponent(symbol)}`);
