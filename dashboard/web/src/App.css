@@ -115,6 +115,8 @@ th.sortable:hover { color: var(--text); }
   background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
 }
 .col-picker .toggle { margin-left: 0; }
+.star-cell { cursor: pointer; user-select: none; color: #f0b429; }
+.star-cell:hover { transform: scale(1.2); }
 .chart-legend { font-size: 12px; margin-top: 6px; }
 
 .chart-row { display: flex; gap: 20px; flex-wrap: wrap; }

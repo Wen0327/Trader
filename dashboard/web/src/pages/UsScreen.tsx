@@ -62,6 +62,7 @@ const COLS: Col[] = [
 const SECTORS = ["巨頭", "半導體", "軟體", "金融", "醫療", "消費",
                  "工業", "國防", "能源", "太空", "稀土", "其他"];
 const LS_KEY = "us-screen-sectors-v2"; // 版本升級:新板塊預設全勾
+const LS_STAR = "us-screen-starred";
 
 export function UsScreen() {
   const { data, error } = useLoad(fetchUsScreen);
@@ -70,7 +71,27 @@ export function UsScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [desc, setDesc] = useState(true);
-  const [tier, setTier] = useState<1 | 2 | 0>(1); // 0 = 全部
+  const [tier, setTier] = useState<1 | 2 | 0 | "star">(1); // 0 = 全部
+  const [starred, setStarred] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(LS_STAR);
+      if (saved) return new Set(JSON.parse(saved));
+    } catch { /* 忽略 */ }
+    return new Set();
+  });
+
+  useEffect(() => {
+    localStorage.setItem(LS_STAR, JSON.stringify([...starred]));
+  }, [starred]);
+
+  const toggleStar = (t: string) => {
+    setStarred((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
+  };
   const [sectors, setSectors] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem(LS_KEY);
@@ -96,15 +117,20 @@ export function UsScreen() {
 
   const rows = useMemo(() => {
     if (!data) return [];
-    let filtered = tier === 0
-      ? data.rows
-      : data.rows.filter((r) => (r.tier ?? 1) === tier);
-    filtered = filtered.filter((r) => sectors.has(r.sector ?? "其他"));
+    let filtered: ValueRow[];
+    if (tier === "star") {
+      filtered = data.rows.filter((r) => starred.has(r.ticker)); // 精選不受板塊篩選限制
+    } else {
+      filtered = tier === 0
+        ? data.rows
+        : data.rows.filter((r) => (r.tier ?? 1) === tier);
+      filtered = filtered.filter((r) => sectors.has(r.sector ?? "其他"));
+    }
     if (!sortKey) return filtered;
     const val = (r: ValueRow) => r[sortKey] ?? -Infinity;
     return [...filtered].sort((a, b) =>
       desc ? Number(val(b)) - Number(val(a)) : Number(val(a)) - Number(val(b)));
-  }, [data, sortKey, desc, tier, sectors]);
+  }, [data, sortKey, desc, tier, sectors, starred]);
 
   const onSort = (k: SortKey) => {
     if (sortKey === k) {
@@ -141,8 +167,9 @@ export function UsScreen() {
       )}
 
       <div className="toolbar">
-        {([[1, "T1 精華"], [2, "T2 二線"], [0, "全部"]] as const).map(([v, label]) => (
-          <button key={v} className={tier === v ? "active" : ""} onClick={() => setTier(v)}>
+        {([[1, "T1 精華"], [2, "T2 二線"], [0, "全部"],
+           ["star", `⭐ 精選(${starred.size})`]] as const).map(([v, label]) => (
+          <button key={String(v)} className={tier === v ? "active" : ""} onClick={() => setTier(v)}>
             {label}
           </button>
         ))}
@@ -175,7 +202,7 @@ export function UsScreen() {
       <table>
         <thead>
           <tr>
-            <th>代號</th><th>名稱</th>
+            <th></th><th>代號</th><th>名稱</th>
             {shown.map((c) => (
               <th
                 key={c.key}
@@ -195,6 +222,13 @@ export function UsScreen() {
               className={`clickable ${selected === r.ticker ? "selected" : ""}`}
               onClick={() => setSelected(r.ticker)}
             >
+              <td
+                className="star-cell"
+                onClick={(e) => { e.stopPropagation(); toggleStar(r.ticker); }}
+                title={starred.has(r.ticker) ? "移出精選" : "加入精選"}
+              >
+                {starred.has(r.ticker) ? "⭐" : "☆"}
+              </td>
               <td>{r.ticker}</td>
               <td>{r.name}</td>
               {shown.map((c) => (
