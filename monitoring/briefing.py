@@ -44,8 +44,8 @@ def compose(rotation: dict) -> str:
                 [w for w in items if not w.get("edge_passed")])
 
     below_waiting = [w for w in below if w.get("status_rank") == 1]
-    active_ok, active_no = gated(active)
-    waiting_ok, waiting_no = gated(near + passed + below_waiting)
+    active_ok, _ = gated(active)
+    waiting_ok, _ = gated(near + passed + below_waiting)
 
     if active_ok:
         lines.append("\n**✅ 進場參考**(通過每日 edge 驗證)— 停損設 20 日低,倉位按停損距離縮")
@@ -80,21 +80,4 @@ def compose(rotation: dict) -> str:
         lines.append("**⏳ 等確認**(通過驗證,突破日 = 進場點)")
         lines.append("```\n" + "\n".join(waiting_ok_rows) + "\n```")
 
-    # 論點追蹤區:狀態照報,但無驗證 edge → 不給進場框架
-    track = []
-    for w in active_no:
-        grade = GRADE_ZH.get(w.get("signal_grade", ""), "?")
-        track.append(f"{w['ticker']} 🟢訊號中[{grade}] edge {w.get('edge_score', '?')}")
-    for w in waiting_no:
-        track.append(f"{w['ticker']} {w.get('status_label', '')} edge {w.get('edge_score', '?')}")
-    for w in below:
-        if w in waiting_ok:
-            continue
-        track.append(f"{w['ticker']} {w.get('status_label', '')}")
-    if track:
-        lines.append("**👀 論點追蹤**(無驗證 edge — 僅供輪動論點觀察,不構成進場依據)")
-        lines.append("> " + " ｜ ".join(track))
-
-    lines.append("\n> 依系統數據整理,非投資建議。edge 驗證 = 該標的完整歷史上 "
-                 "Donchian 21 組參數鄰域過半勝過 B&H Sharpe,每日刷新。")
     return "\n".join(lines)
