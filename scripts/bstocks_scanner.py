@@ -105,6 +105,10 @@ def enrich_with_news(report: dict) -> int:
         header = f"📡 **輪動監控** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC"
         send("\n".join([header, *events]))
         report["events"] = events
+
+    # 每日盤前簡報(固定發送)
+    from monitoring.briefing import compose
+    send(compose(report["rotation"]))
     return added
 
 
