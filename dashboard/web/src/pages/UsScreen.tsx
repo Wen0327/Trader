@@ -59,7 +59,9 @@ const COLS: Col[] = [
     render: (r) => <span className="muted">{r.pe ?? "—"}</span> },
 ];
 
-const LS_KEY = "us-screen-cols";
+const SECTORS = ["巨頭", "半導體", "軟體", "金融", "醫療",
+                 "消費", "工業", "能源", "太空", "其他"];
+const LS_KEY = "us-screen-sectors";
 
 export function UsScreen() {
   const { data, error } = useLoad(fetchUsScreen);
@@ -69,39 +71,40 @@ export function UsScreen() {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [desc, setDesc] = useState(true);
   const [tier, setTier] = useState<1 | 2 | 0>(1); // 0 = 全部
-  const [visible, setVisible] = useState<Set<string>>(() => {
+  const [sectors, setSectors] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem(LS_KEY);
       if (saved) return new Set(JSON.parse(saved));
     } catch { /* 忽略,回預設 */ }
-    return new Set(COLS.map((c) => c.key));
+    return new Set(SECTORS);
   });
 
   useEffect(() => {
-    localStorage.setItem(LS_KEY, JSON.stringify([...visible]));
-  }, [visible]);
+    localStorage.setItem(LS_KEY, JSON.stringify([...sectors]));
+  }, [sectors]);
 
-  const toggleCol = (k: string) => {
-    setVisible((prev) => {
+  const toggleSector = (s: string) => {
+    setSectors((prev) => {
       const next = new Set(prev);
-      if (next.has(k)) next.delete(k);
-      else next.add(k);
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
       return next;
     });
   };
 
-  const shown = COLS.filter((c) => visible.has(c.key));
+  const shown = COLS;
 
   const rows = useMemo(() => {
     if (!data) return [];
-    const filtered = tier === 0
+    let filtered = tier === 0
       ? data.rows
       : data.rows.filter((r) => (r.tier ?? 1) === tier);
+    filtered = filtered.filter((r) => sectors.has(r.sector ?? "其他"));
     if (!sortKey) return filtered;
     const val = (r: ValueRow) => r[sortKey] ?? -Infinity;
     return [...filtered].sort((a, b) =>
       desc ? Number(val(b)) - Number(val(a)) : Number(val(a)) - Number(val(b)));
-  }, [data, sortKey, desc, tier]);
+  }, [data, sortKey, desc, tier, sectors]);
 
   const onSort = (k: SortKey) => {
     if (sortKey === k) {
@@ -149,17 +152,24 @@ export function UsScreen() {
       </div>
 
       <div className="col-picker">
-        <span className="muted">欄位:</span>
-        {COLS.map((c) => (
-          <label key={c.key} className="toggle">
+        <span className="muted">類別:</span>
+        {SECTORS.map((s) => (
+          <label key={s} className="toggle">
             <input
               type="checkbox"
-              checked={visible.has(c.key)}
-              onChange={() => toggleCol(c.key)}
+              checked={sectors.has(s)}
+              onChange={() => toggleSector(s)}
             />
-            {c.label}
+            {s}
           </label>
         ))}
+        <button
+          className="drawer-close"
+          onClick={() => setSectors(
+            sectors.size === SECTORS.length ? new Set() : new Set(SECTORS))}
+        >
+          {sectors.size === SECTORS.length ? "全不選" : "全選"}
+        </button>
       </div>
 
       <table>
