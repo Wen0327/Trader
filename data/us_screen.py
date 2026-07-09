@@ -48,7 +48,7 @@ UNIVERSE = {
     # 其他
     "LIN": "林德", "NEE": "新世代能源", "TMUS": "T-Mobile",
     "PYPL": "PayPal", "COIN": "Coinbase", "MSTR": "MicroStrategy",
-    "SPCX": "SpaceX(2026-06 IPO)",
+    "SPCX": "SpaceX",
 }
 
 LOOKBACK, SKIP = 252, 21
