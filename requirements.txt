@@ -8,3 +8,4 @@ yfinance>=0.2
 vaderSentiment>=3.3
 fastapi>=0.110
 uvicorn>=0.29
+pytest>=8.0
