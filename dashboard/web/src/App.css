@@ -115,3 +115,19 @@ tr.clickable { cursor: pointer; }
 tr.clickable:hover td { background: var(--panel); }
 tr.selected td { background: var(--panel); border-left: 2px solid var(--accent); }
 tr.row-dim td { opacity: 0.45; }
+
+.chart-drawer {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+  padding: 10px 24px 12px;
+}
+.chart-drawer-head {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 6px;
+}
+.drawer-close {
+  margin-left: auto; background: none; border: 1px solid var(--border);
+  color: var(--muted); border-radius: 6px; padding: 2px 10px; cursor: pointer;
+}
+.drawer-close:hover { color: var(--text); }

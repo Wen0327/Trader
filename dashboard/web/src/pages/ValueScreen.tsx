@@ -54,24 +54,38 @@ export function ValueScreen() {
         </tbody>
       </table>
 
-      {selected && <TwChart ticker={selected} />}
+      {/* 抽屜開啟時墊高頁尾,避免表格末列被蓋住 */}
+      {selected && <div style={{ height: 360 }} />}
+      {selected && (
+        <TwChartDrawer ticker={selected} onClose={() => setSelected(null)} />
+      )}
     </>
   );
 }
 
-function TwChart({ ticker }: { ticker: string }) {
+function TwChartDrawer({ ticker, onClose }: { ticker: string; onClose: () => void }) {
   const { data, error, fetching } = useLoad(
     () => fetchChart(ticker), [ticker], { keepPrevious: true },
   );
-  if (error) return <ErrorBox msg={error} />;
-  if (!data) return <Loading />;
   return (
-    <>
-      <h2>{ticker.replace(/\.TWO?$/, "")} — {data.ticker === ticker ? data.label : "載入中…"}</h2>
-      <div style={{ opacity: fetching ? 0.45 : 1, transition: "opacity 0.15s" }}>
-        <CandleChart data={data} showBreakouts={false} />
-        <p className="muted chart-legend">黃線 200MA ｜ 綠虛線 55日高 ｜ 紅虛線 20日低</p>
+    <div className="chart-drawer">
+      <div className="chart-drawer-head">
+        <strong>
+          {ticker.replace(/\.TWO?$/, "")} —{" "}
+          {data && data.ticker === ticker ? data.label : "載入中…"}
+        </strong>
+        <span className="muted chart-legend" style={{ marginTop: 0 }}>
+          黃 200MA ｜ 綠虛 55日高 ｜ 紅虛 20日低
+        </span>
+        <button className="drawer-close" onClick={onClose} aria-label="關閉">✕</button>
       </div>
-    </>
+      {error && <ErrorBox msg={error} />}
+      {!data && !error && <Loading />}
+      {data && (
+        <div style={{ opacity: fetching ? 0.45 : 1, transition: "opacity 0.15s" }}>
+          <CandleChart data={data} showBreakouts={false} height={280} />
+        </div>
+      )}
+    </div>
   );
 }
