@@ -39,21 +39,24 @@ WATCHLIST = {
 
 NEAR_PCT = 3.0  # 「接近」門檻:距目標 3% 以內
 
-# 狀態階梯(rank 越大越接近可行動)
+# 狀態階梯(rank 越大越接近可行動)。
+# 最高級採「狀態機」語意:曾突破 55 日高且尚未跌破 20 日低 = 訊號存續,
+# 小幅回落不降級 — 與 Donchian 倉位邏輯一致(2026-07-09 修正快照語意缺陷)。
 STATUS = {
     0: ("watching", "⚪ 觀察中"),
     1: ("near_gate1", "🟡 接近第一道門"),
     2: ("gate1_passed", "🔵 通過第一道門"),
     3: ("near_trigger", "🟠 逼近扣扳機"),
-    4: ("triggered", "🟢 已突破"),
+    4: ("triggered", "🟢 訊號有效中"),
 }
 
 
-def classify(above_ma200: bool, pct_vs_ma200: float, pct_to_55d_high: float) -> dict:
-    if not above_ma200:
-        rank = 1 if pct_vs_ma200 >= -NEAR_PCT else 0
-    elif pct_to_55d_high >= 0:
+def classify(above_ma200: bool, pct_vs_ma200: float, pct_to_55d_high: float,
+             signal_active: bool) -> dict:
+    if signal_active:
         rank = 4
+    elif not above_ma200:
+        rank = 1 if pct_vs_ma200 >= -NEAR_PCT else 0
     elif pct_to_55d_high >= -NEAR_PCT:
         rank = 3
     else:
@@ -82,6 +85,11 @@ def _trend_status(ticker: str) -> dict | None:
         recent = breakout_days[(breakout_days) & (breakout_days.index >= cutoff)]
         last_trigger = recent.index[-1] if len(recent) else None
 
+        # 狀態機:Donchian 倉位狀態(突破後、未破20日低 = 訊號存續)
+        from strategy.donchian import DonchianBreakout
+        signal_active = bool(
+            DonchianBreakout(55, 20).generate_signals(df).iloc[-1] == 1.0)
+
         return {
             "ticker": ticker,
             "price": round(float(last), 2),
@@ -90,7 +98,7 @@ def _trend_status(ticker: str) -> dict | None:
             "pct_to_55d_high": to_hi,
             "last_trigger_date": last_trigger.strftime("%Y-%m-%d") if last_trigger is not None else None,
             "days_since_trigger": int((close.index[-1] - last_trigger).days) if last_trigger is not None else None,
-            **classify(above, vs_ma, to_hi),
+            **classify(above, vs_ma, to_hi, signal_active),
         }
     except Exception:
         return None

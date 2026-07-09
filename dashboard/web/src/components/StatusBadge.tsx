@@ -12,7 +12,7 @@ export function StatusBadge({ item }: { item: WatchItem }) {
       {retreated && (
         <span
           className="badge badge-retreat"
-          title={`${item.last_trigger_date} 曾收盤突破 55 日高,之後回落`}
+          title={`${item.last_trigger_date} 曾突破 55 日高,之後跌破 20 日低,訊號已失效`}
         >
           🔄 {item.days_since_trigger}天前曾突破
         </span>
