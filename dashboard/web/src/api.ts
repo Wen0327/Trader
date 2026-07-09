@@ -141,6 +141,8 @@ export type ValueRow = {
   passed: boolean;          // 舊殖利率三關(保留於數據,不再作為主標記)
   momentum_pct?: number | null;
   picked?: boolean;         // ✅ = 動量 TOP10 成員
+  range_pos_20d?: number;   // 20日區間位置 0~100
+  zone?: "pullback" | "mid" | "high";
 };
 
 export type MomentumPick = {

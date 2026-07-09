@@ -31,14 +31,44 @@ def _clean_returns(adj: pd.DataFrame) -> pd.DataFrame:
     return ret.mask(ret.abs() > 0.11, 0.0)  # 台股漲跌停清洗
 
 
-def momentum_all() -> dict[str, float]:
-    """全池 12-1 動量(%),供表格排序與 TOP10 選取。"""
+def market_snapshot() -> tuple[dict[str, float], dict[str, dict]]:
+    """一次下載,回傳 (全池 12-1 動量 %, 個股短線技術位置)。
+
+    短線位置(執行輔助,未驗證 alpha):
+      range_pos = (現價-20日低)/(20日高-20日低),0~100
+      pullback  = range_pos < 40 且仍在自身 200MA 上
+    """
     tickers = list(UNIVERSE)
     adj = yf.download(tickers, period="2y", auto_adjust=True,
                       progress=False)["Close"]
     clean = (1 + _clean_returns(adj)).cumprod()
     momentum = (clean.shift(SKIP) / clean.shift(LOOKBACK) - 1).iloc[-1].dropna()
-    return {t: round(float(m) * 100, 1) for t, m in momentum.items()}
+
+    hi20 = clean.rolling(20).max().iloc[-1]
+    lo20 = clean.rolling(20).min().iloc[-1]
+    ma200 = clean.rolling(200).mean().iloc[-1]
+    last = clean.iloc[-1]
+    tech: dict[str, dict] = {}
+    for t in tickers:
+        if any(pd.isna(x) for x in (last.get(t), hi20.get(t), lo20.get(t), ma200.get(t))):
+            continue
+        rng = float(hi20[t] - lo20[t]) or 1e-9
+        pos = round(float(last[t] - lo20[t]) / rng * 100)
+        above = bool(last[t] > ma200[t])
+        if pos < 40 and above:
+            zone = "pullback"
+        elif pos > 70:
+            zone = "high"
+        else:
+            zone = "mid"
+        tech[t] = {"range_pos_20d": pos, "above_ma200": above, "zone": zone}
+
+    return {t: round(float(m) * 100, 1) for t, m in momentum.items()}, tech
+
+
+def momentum_all() -> dict[str, float]:
+    """全池 12-1 動量(%)— 相容包裝。"""
+    return market_snapshot()[0]
 
 
 def current_picks(momentum: dict[str, float] | None = None) -> list[dict]:

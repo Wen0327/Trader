@@ -22,13 +22,17 @@ if __name__ == "__main__":
     # 動量模型(取代舊的殖利率三關作為選股標記):
     # ✅ = 12-1 動量 TOP10;表格按動量排序;財報欄位降為參考資訊
     from data.tw_momentum import (current_picks, forward_performance,
-                                  momentum_all, update_tracking)
-    momentum = momentum_all()
+                                  market_snapshot, update_tracking)
+    momentum, tech = market_snapshot()
     picks = current_picks(momentum)
     picked_set = {p["ticker"] for p in picks}
     for r in result["rows"]:
         r["momentum_pct"] = momentum.get(r["ticker"])
         r["picked"] = r["ticker"] in picked_set
+        t = tech.get(r["ticker"])
+        if t:
+            r["range_pos_20d"] = t["range_pos_20d"]
+            r["zone"] = t["zone"]
     # 通過模型者(✅)排最前,其餘按動量遞減(被 cap 剔除的拋物線沉底部前段)
     result["rows"].sort(key=lambda r: (not r["picked"],
                                        -(r.get("momentum_pct") or -999)))

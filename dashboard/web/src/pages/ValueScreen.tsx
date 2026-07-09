@@ -34,8 +34,9 @@ export function ValueScreen() {
       <table>
         <thead>
           <tr>
-            <th></th><th>代號</th><th>名稱</th><th>動量(12-1月)</th><th>股價</th>
-            <th>殖利率</th><th>營收成長</th><th>獲利率</th><th>PE</th>
+            <th></th><th>代號</th><th>名稱</th><th>動量(12-1月)</th>
+            <th>短線位置 <InfoTip text="(現價−20日低)÷(20日高−20日低)。🟢 回調位 = <40% 且在自身200MA上,分批進場友善;🔴 短線高檔 = >70% 貼頂。執行輔助標示,未驗證 alpha,不影響模型選股" /></th>
+            <th>股價</th><th>殖利率</th><th>營收成長</th><th>獲利率</th><th>PE</th>
           </tr>
         </thead>
         <tbody>
@@ -50,6 +51,16 @@ export function ValueScreen() {
               <td>{r.name}</td>
               <td className={r.momentum_pct != null && r.momentum_pct >= 0 ? "good" : "bad"}>
                 {r.momentum_pct != null ? `${r.momentum_pct > 0 ? "+" : ""}${r.momentum_pct}%` : "—"}
+              </td>
+              <td>
+                {r.picked && r.zone ? (
+                  <span className={
+                    r.zone === "pullback" ? "good" : r.zone === "high" ? "bad" : "muted"
+                  }>
+                    {r.zone === "pullback" ? "🟢 回調位" : r.zone === "high" ? "🔴 短線高檔" : "⚪ 中段"}
+                    {" "}{r.range_pos_20d}%
+                  </span>
+                ) : "—"}
               </td>
               <td>{r.price}</td>
               <td className="muted">{r.dividend_yield != null ? `${r.dividend_yield}%` : "—"}</td>
