@@ -22,6 +22,37 @@ export function ValueScreen() {
         更新:{fmtTs(data.scanned_at)}|通過 {data.rows.filter((r) => r.passed).length}
         /{data.fetched}
       </p>
+
+      {data.momentum && (
+        <>
+          <h2>
+            📈 動量 TOP10
+            <InfoTip text="12-1月截面動量前10,季調倉。回測 2010-2026 大勝 0050(鄰域12/12、雙子區段皆勝),但生存者偏差無法量化 — 此為前瞻追蹤,累積真實樣本外證據,幾季後對帳" />
+          </h2>
+          <div className="cards">
+            {data.momentum.picks.map((p) => (
+              <div className="card" key={p.ticker}>
+                <span className="label">
+                  {p.ticker.replace(/\.TWO?$/, "")} {p.name}
+                </span>
+                <span className={`value ${p.momentum_pct >= 0 ? "good" : "bad"}`}>
+                  {p.momentum_pct > 0 ? "+" : ""}{p.momentum_pct}%
+                </span>
+              </div>
+            ))}
+          </div>
+          {data.momentum.performance && data.momentum.performance.n_rebalances > 1 && (
+            <p className="muted">
+              前瞻績效(自 {data.momentum.performance.since},
+              {data.momentum.performance.n_rebalances} 次調倉):
+              策略 <strong>{data.momentum.performance.strategy_pct}%</strong> vs
+              0050 <strong>{data.momentum.performance.bench_0050_pct}%</strong>
+            </p>
+          )}
+        </>
+      )}
+
+      <h2>價值篩選表</h2>
       <table>
         <thead>
           <tr>

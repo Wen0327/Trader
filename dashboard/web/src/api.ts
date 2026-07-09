@@ -141,6 +141,13 @@ export type ValueRow = {
   passed: boolean;
 };
 
+export type MomentumPick = {
+  ticker: string;
+  name: string;
+  momentum_pct: number;
+  price: number;
+};
+
 export type ValueScreenReport = {
   scanned_at: string;
   criteria: {
@@ -151,6 +158,16 @@ export type ValueScreenReport = {
   universe_size: number;
   fetched: number;
   rows: ValueRow[];
+  momentum?: {
+    picks: MomentumPick[];
+    rebalanced: boolean;
+    performance: {
+      since: string;
+      n_rebalances: number;
+      strategy_pct: number;
+      bench_0050_pct: number;
+    } | null;
+  };
 };
 
 export const fetchScan = () => get<Scan>("/api/scan");
