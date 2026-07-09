@@ -96,6 +96,15 @@ def enrich_with_news(report: dict) -> int:
     from data.rotation import watch
     report["rotation"] = watch()
 
+    # 驗證閘門:各標的 Donchian edge 每日刷新,注入 watchlist
+    from data.edge_gate import get_verdicts
+    verdicts = get_verdicts([w["ticker"] for w in report["rotation"]["watchlist"]])
+    for w in report["rotation"]["watchlist"]:
+        v = verdicts.get(w["ticker"])
+        if v:
+            w["edge_passed"] = v["passed"]
+            w["edge_score"] = f"{v['wins']}/{v['total']}"
+
     # 狀態變遷 → Discord 通知(首次執行只存基準)
     from monitoring.notify import send
     from monitoring.transitions import detect

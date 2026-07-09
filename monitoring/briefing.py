@@ -38,39 +38,63 @@ def compose(rotation: dict) -> str:
             f"{r['pair']} {'🟢' if r['rotation_on'] else '⚪'} "
             f"`{r['pct_vs_ma200']:+.1f}%`" for r in ratios))
 
-    if active:
-        lines.append("\n**🟢 訊號有效中** — 若進:停損設 20 日低,倉位按停損距離縮")
-        rows = ["標的    現價     停損價 (距離)     進場至今"]
-        for w in active:
+    def gated(items):
+        """驗證閘門:通過者才有進場框架資格。"""
+        return ([w for w in items if w.get("edge_passed")],
+                [w for w in items if not w.get("edge_passed")])
+
+    below_waiting = [w for w in below if w.get("status_rank") == 1]
+    active_ok, active_no = gated(active)
+    waiting_ok, waiting_no = gated(near + passed + below_waiting)
+
+    if active_ok:
+        lines.append("\n**✅ 進場參考**(通過每日 edge 驗證)— 停損設 20 日低,倉位按停損距離縮")
+        rows = ["標的    現價     停損價   進場至今"]
+        for w in active_ok:
             exit_lv = _exit_level(w)
             grade = GRADE_ZH.get(w.get("signal_grade", ""), "?")
             rows.append(
-                f"{w['ticker']:<6}{w['price']:>8.2f}  "
-                f"{exit_lv:>7.2f} ({-w['pct_to_exit']:>5.1f}%)  "
-                f"{w.get('since_entry_pct'):>+5.1f}%  [{grade}]")
+                f"{w['ticker']:<6}{w['price']:>8.2f}  {exit_lv:>7.2f}  "
+                f"{w.get('since_entry_pct'):>+5.1f}%  [{grade}] "
+                f"edge {w.get('edge_score')}")
         lines.append("```\n" + "\n".join(rows) + "\n```")
-        weak = [w["ticker"] for w in active if w.get("signal_grade") == "weak"]
+        weak = [w["ticker"] for w in active_ok if w.get("signal_grade") == "weak"]
         if weak:
             lines.append(f"> ⚠️ {', '.join(weak)} 瀕死訊號(貼近停損 + 水下),不建議追")
+    else:
+        lines.append("\n**✅ 進場參考:今日無** — 沒有任何「訊號有效 + 通過 edge 驗證」的標的")
 
-    waiting_rows = []
-    for w in near + passed:
-        trigger = _gate_level(w, "pct_to_55d_high")
-        waiting_rows.append(
-            f"{w['ticker']:<6}突破 55日高 {trigger:>7.2f}  還差 {abs(w['pct_to_55d_high']):>4.1f}%")
-    for w in below:
-        if w.get("status_rank") == 1:
+    waiting_ok_rows = []
+    for w in waiting_ok:
+        if w.get("status_rank") == 1:  # 尚在 200MA 下:第一道門價位
             ma = _gate_level(w, "pct_vs_ma200")
-            waiting_rows.append(
-                f"{w['ticker']:<6}站回 200MA  {ma:>7.2f}  還差 {abs(w['pct_vs_ma200']):>4.1f}%")
-    if waiting_rows:
-        lines.append("**⏳ 等確認** — 系統劇本:突破日才是進場點")
-        lines.append("```\n" + "\n".join(waiting_rows) + "\n```")
+            waiting_ok_rows.append(
+                f"{w['ticker']:<6}站回 200MA  {ma:>7.2f}  還差 {abs(w['pct_vs_ma200']):>4.1f}%"
+                f"  edge {w.get('edge_score')}")
+        else:
+            trigger = _gate_level(w, "pct_to_55d_high")
+            waiting_ok_rows.append(
+                f"{w['ticker']:<6}突破 55日高 {trigger:>7.2f}  還差 {abs(w['pct_to_55d_high']):>4.1f}%"
+                f"  edge {w.get('edge_score')}")
+    if waiting_ok_rows:
+        lines.append("**⏳ 等確認**(通過驗證,突破日 = 進場點)")
+        lines.append("```\n" + "\n".join(waiting_ok_rows) + "\n```")
 
-    deep = [w["ticker"] for w in below if w.get("status_rank") == 0]
-    if deep:
-        lines.append(f"觀察中(未過第一道門):`{'` `'.join(deep)}`")
+    # 論點追蹤區:狀態照報,但無驗證 edge → 不給進場框架
+    track = []
+    for w in active_no:
+        grade = GRADE_ZH.get(w.get("signal_grade", ""), "?")
+        track.append(f"{w['ticker']} 🟢訊號中[{grade}] edge {w.get('edge_score', '?')}")
+    for w in waiting_no:
+        track.append(f"{w['ticker']} {w.get('status_label', '')} edge {w.get('edge_score', '?')}")
+    for w in below:
+        if w in waiting_ok:
+            continue
+        track.append(f"{w['ticker']} {w.get('status_label', '')}")
+    if track:
+        lines.append("**👀 論點追蹤**(無驗證 edge — 僅供輪動論點觀察,不構成進場依據)")
+        lines.append("> " + " ｜ ".join(track))
 
-    lines.append("\n> 依系統數據整理,非投資建議。此清單 ETF 趨勢擇時無驗證 edge,"
-                 "表達論點以確認後分批配置為宜。")
+    lines.append("\n> 依系統數據整理,非投資建議。edge 驗證 = 該標的完整歷史上 "
+                 "Donchian 21 組參數鄰域過半勝過 B&H Sharpe,每日刷新。")
     return "\n".join(lines)
