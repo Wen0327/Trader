@@ -1,12 +1,36 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import type { ValueRow } from "../api";
 import { fetchChart, fetchValueScreen, fmtTs } from "../api";
 import { CandleChart } from "../components/CandleChart";
 import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
 
+type SortKey = "momentum_pct" | "range_pos_20d" | "price"
+  | "dividend_yield" | "revenue_growth" | "profit_margin" | "pe";
+
 export function ValueScreen() {
   const { data, error } = useLoad(fetchValueScreen);
   const [selected, setSelected] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [desc, setDesc] = useState(true);
+
+  const rows = useMemo(() => {
+    if (!data) return [];
+    if (!sortKey) return data.rows; // 預設:✅ 在前、動量遞減(伺服器排序)
+    const val = (r: ValueRow) => r[sortKey] ?? -Infinity;
+    return [...data.rows].sort((a, b) =>
+      desc ? Number(val(b)) - Number(val(a)) : Number(val(a)) - Number(val(b)));
+  }, [data, sortKey, desc]);
+
+  const onSort = (k: SortKey) => {
+    if (sortKey === k) {
+      if (desc) setDesc(false);
+      else { setSortKey(null); setDesc(true); }  // 第三次點擊回預設
+    } else { setSortKey(k); setDesc(true); }
+  };
+  const arrow = (k: SortKey) =>
+    sortKey === k ? (desc ? " ▼" : " ▲") : "";
+
   if (error) return <ErrorBox msg={error} />;
   if (!data) return <Loading />;
 
@@ -34,13 +58,20 @@ export function ValueScreen() {
       <table>
         <thead>
           <tr>
-            <th></th><th>代號</th><th>名稱</th><th>動量(12-1月)</th>
-            <th>短線位置 <InfoTip text="(現價−20日低)÷(20日高−20日低)。🟢 回調位 = <40% 且在自身200MA上,分批進場友善;🔴 短線高檔 = >70% 貼頂。執行輔助標示,未驗證 alpha,不影響模型選股" /></th>
-            <th>股價</th><th>殖利率</th><th>營收成長</th><th>獲利率</th><th>PE</th>
+            <th></th><th>代號</th><th>名稱</th>
+            <th className="sortable" onClick={() => onSort("momentum_pct")}>動量(12-1月){arrow("momentum_pct")}</th>
+            <th className="sortable" onClick={() => onSort("range_pos_20d")}>
+              短線位置{arrow("range_pos_20d")} <InfoTip text="(現價−20日低)÷(20日高−20日低)。🟢 回調位 = <40% 且在自身200MA上,分批進場友善;🔴 短線高檔 = >70% 貼頂。執行輔助標示,未驗證 alpha,不影響模型選股" />
+            </th>
+            <th className="sortable" onClick={() => onSort("price")}>股價{arrow("price")}</th>
+            <th className="sortable" onClick={() => onSort("dividend_yield")}>殖利率{arrow("dividend_yield")}</th>
+            <th className="sortable" onClick={() => onSort("revenue_growth")}>營收成長{arrow("revenue_growth")}</th>
+            <th className="sortable" onClick={() => onSort("profit_margin")}>獲利率{arrow("profit_margin")}</th>
+            <th className="sortable" onClick={() => onSort("pe")}>PE{arrow("pe")}</th>
           </tr>
         </thead>
         <tbody>
-          {data.rows.map((r) => (
+          {rows.map((r) => (
             <tr
               key={r.ticker}
               className={`clickable ${r.picked ? "" : "row-dim"} ${selected === r.ticker ? "selected" : ""}`}

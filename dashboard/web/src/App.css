@@ -54,6 +54,8 @@ h2 { font-size: 15px; color: var(--muted); margin: 28px 0 10px; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-weight: 500; font-size: 12px; }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--text); }
 .headlines { color: var(--muted); font-size: 12px; max-width: 420px; }
 
 .good { color: var(--good); }
