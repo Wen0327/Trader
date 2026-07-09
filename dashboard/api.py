@@ -231,8 +231,12 @@ def fear_greed():
 
 
 @app.get("/api/equity")
-def equity_history():
-    return log_parser.equity_points()
+def equity_history(track: str = "spot"):
+    """權益曲線:優先讀快照(storage/equity_history.jsonl),
+    無快照時退回解析 bot.log(相容舊資料)。"""
+    from monitoring import equity_log
+    snapshots = equity_log.read(track)
+    return snapshots if snapshots else log_parser.equity_points(track)
 
 
 @app.get("/api/trades")

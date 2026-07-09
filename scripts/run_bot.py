@@ -11,6 +11,7 @@
 
 import argparse
 import logging
+import logging.handlers
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -24,6 +25,7 @@ from data import binance_feed, yahoo_feed
 from execution.binance_broker import BinanceBroker
 from execution.binance_futures_broker import BinanceFuturesTestnetBroker
 from execution.portfolio import STATE_PATH, Portfolio
+from monitoring import equity_log
 from risk.manager import RiskConfig, RiskManager, RiskViolation
 from strategy.base import Strategy
 from strategy.cycle_short import CycleShort
@@ -67,7 +69,9 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
     handlers=[
-        logging.FileHandler(LOGS_DIR / "bot.log"),
+        # 輪替:單檔 5MB、保留 3 份,避免每小時排程把日誌養到失控
+        logging.handlers.RotatingFileHandler(
+            LOGS_DIR / "bot.log", maxBytes=5_000_000, backupCount=3),
         logging.StreamHandler(),
     ],
 )
@@ -104,6 +108,7 @@ def run_once(broker: BinanceBroker, risk: RiskManager) -> None:
 
     equity = compute_equity(broker, portfolio)
     risk.update_equity(equity)
+    equity_log.record("spot", equity)
     log.info(f"權益={equity:.2f} USDT, kill_switch={risk.kill_switch_active}")
 
     for symbol, cfg in SYMBOL_CONFIGS.items():
@@ -169,6 +174,7 @@ def run_futures_once(fbroker: BinanceFuturesTestnetBroker, frisk: RiskManager) -
     frisk.restore(portfolio.risk_state)
     equity = fbroker.get_balance("USDT")
     frisk.update_equity(equity)
+    equity_log.record("futures", equity)
     log.info(f"[合約] 權益={equity:.2f} USDT, kill_switch={frisk.kill_switch_active}")
 
     for symbol, cfg in FUTURES_SHORT_CONFIGS.items():
