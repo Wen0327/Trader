@@ -68,23 +68,29 @@ export function Rotation() {
 }
 
 function TickerChart({ ticker }: { ticker: string }) {
-  const { data, error } = useLoad(() => fetchRotationTicker(ticker), [ticker]);
+  const { data, error, fetching } = useLoad(
+    () => fetchRotationTicker(ticker), [ticker], { keepPrevious: true },
+  );
   if (error) return <ErrorBox msg={error} />;
   if (!data) return <Loading />;
   return (
     <>
-      <h2>{data.ticker} — {data.label}</h2>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data.series}>
-          <XAxis dataKey="date" minTickGap={70} />
-          <YAxis domain={["auto", "auto"]} width={62} />
-          <Tooltip />
-          <Legend />
-          <Line name="收盤價" dataKey="close" dot={false} stroke="#4f9cf9" strokeWidth={1.8} />
-          <Line name="200MA(第一道門)" dataKey="ma200" dot={false} stroke="#f0b429" strokeWidth={1.2} />
-          <Line name="55日高(扣扳機線)" dataKey="hi55" dot={false} stroke="#38c172" strokeWidth={1} strokeDasharray="4 3" />
-        </LineChart>
-      </ResponsiveContainer>
+      <h2>
+        {ticker} — {data.ticker === ticker ? data.label : "載入中…"}
+      </h2>
+      <div style={{ opacity: fetching ? 0.45 : 1, transition: "opacity 0.15s" }}>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={data.series}>
+            <XAxis dataKey="date" minTickGap={70} />
+            <YAxis domain={["auto", "auto"]} width={62} />
+            <Tooltip />
+            <Legend />
+            <Line name="收盤價" dataKey="close" dot={false} stroke="#4f9cf9" strokeWidth={1.8} isAnimationActive={false} />
+            <Line name="200MA(第一道門)" dataKey="ma200" dot={false} stroke="#f0b429" strokeWidth={1.2} isAnimationActive={false} />
+            <Line name="55日高(扣扳機線)" dataKey="hi55" dot={false} stroke="#38c172" strokeWidth={1} strokeDasharray="4 3" isAnimationActive={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </>
   );
 }
