@@ -4,6 +4,7 @@ import { Overview } from "./pages/Overview";
 import { Rotation } from "./pages/Rotation";
 import { Scanner } from "./pages/Scanner";
 import { Trades } from "./pages/Trades";
+import { ValueScreen } from "./pages/ValueScreen";
 import "./App.css";
 
 const TABS = {
@@ -11,6 +12,7 @@ const TABS = {
   交易: Trades,
   掃描: Scanner,
   輪動: Rotation,
+  價值: ValueScreen,
   回測: BacktestPage,
 } as const;
 type Tab = keyof typeof TABS;

@@ -100,10 +100,10 @@ class ScanStore:
     def __init__(self, reports_dir: Path):
         self._dir = reports_dir
 
-    def latest(self) -> dict:
-        files = sorted(self._dir.glob("bstocks_scan_*.json"))
+    def latest(self, prefix: str = "bstocks_scan") -> dict:
+        files = sorted(self._dir.glob(f"{prefix}_*.json"))
         if not files:
-            raise FileNotFoundError("尚無掃描報告")
+            raise FileNotFoundError(f"尚無 {prefix} 報告")
         return json.loads(files[-1].read_text())
 
 
@@ -288,6 +288,14 @@ def rotation_ticker(symbol: str):
         return rotation_service.ticker_series(symbol)
     except KeyError:
         raise HTTPException(404, f"{symbol} 不在觀察清單")
+
+
+@app.get("/api/value-screen")
+def value_screen():
+    try:
+        return scan_store.latest("value_screen")
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
 
 
 @app.get("/api/backtest")

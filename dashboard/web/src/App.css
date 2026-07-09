@@ -114,3 +114,4 @@ th { color: var(--muted); font-weight: 500; font-size: 12px; }
 tr.clickable { cursor: pointer; }
 tr.clickable:hover td { background: var(--panel); }
 tr.selected td { background: var(--panel); border-left: 2px solid var(--accent); }
+tr.row-dim td { opacity: 0.45; }

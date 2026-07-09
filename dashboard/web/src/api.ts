@@ -129,7 +129,32 @@ export type TickerSeries = {
   }[];
 };
 
+export type ValueRow = {
+  ticker: string;
+  name: string;
+  price: number;
+  dividend_yield: number | null;
+  revenue_growth: number | null;
+  profit_margin: number | null;
+  pe: number | null;
+  debt_to_equity: number | null;
+  passed: boolean;
+};
+
+export type ValueScreenReport = {
+  scanned_at: string;
+  criteria: {
+    min_dividend_yield: number;
+    min_revenue_growth: number;
+    min_profit_margin: number;
+  };
+  universe_size: number;
+  fetched: number;
+  rows: ValueRow[];
+};
+
 export const fetchScan = () => get<Scan>("/api/scan");
+export const fetchValueScreen = () => get<ValueScreenReport>("/api/value-screen");
 export const fetchRotation = () => get<Rotation>("/api/rotation");
 export const fetchRotationTicker = (symbol: string) =>
   get<TickerSeries>(`/api/rotation/ticker?symbol=${encodeURIComponent(symbol)}`);
