@@ -48,10 +48,15 @@ export function Login({ onCheck }: { onCheck: () => void }) {
 
         {sent ? (
           <div className="login-sent">
-            <p>📡 驗證信已發射 — 點擊信中連結完成登入</p>
+            <p>📡 驗證信已發射至 <span className="sent-email">{email}</span></p>
             <p className="muted">
-              連結 15 分鐘內有效。
+              點擊信中連結完成登入,15 分鐘內有效。
               <button className="link-btn" onClick={onCheck}>我已點擊,重新檢查</button>
+            </p>
+            <p className="muted">
+              <button className="link-btn" onClick={() => setSent(false)}>
+                ← Email 打錯了?返回重填
+              </button>
             </p>
           </div>
         ) : (
