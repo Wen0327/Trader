@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -10,22 +11,38 @@ import { useLoad } from "../hooks/useLoad";
 export function PaperBooks() {
   const { data, error } = useLoad(fetchPaperBooks, [],
     { keepPrevious: true, refreshMs: 60_000 });
+  const [book, setBook] = useState<"us" | "tw">("us");
   if (error) return <ErrorBox msg={error} />;
   if (!data) return <Loading />;
 
   return (
     <>
-      <h2>
-        紙上 US — QQQB Regime200
-        <InfoTip text="bot 每小時管理,按幣安公開行情成交(含手續費+滑價,無盤口深度 = 實盤上界)。損益如實入帳,供 --live 決策對帳" />
-      </h2>
-      <UsBook us={data.us} />
+      <div className="toolbar">
+        <button className={book === "us" ? "active" : ""} onClick={() => setBook("us")}>
+          🇺🇸 美股 — QQQB Regime200
+        </button>
+        <button className={book === "tw" ? "active" : ""} onClick={() => setBook("tw")}>
+          🇹🇼 台股 — 動量 TOP10
+        </button>
+      </div>
 
-      <h2>
-        紙上 TW — 動量 TOP10(cap150)
-        <InfoTip text="週掃描管理,季調倉,台股實際費制(買 0.1425%、賣 0.4425% 含稅)、整股制。逐季與回測期望對帳" />
-      </h2>
-      <TwBook tw={data.tw} />
+      {book === "us" ? (
+        <>
+          <h2>
+            紙上 US
+            <InfoTip text="bot 每小時管理,按幣安公開行情成交(含手續費+滑價,無盤口深度 = 實盤上界)。全額曝險鏡像策略,供 --live 決策對帳" />
+          </h2>
+          <UsBook us={data.us} />
+        </>
+      ) : (
+        <>
+          <h2>
+            紙上 TW
+            <InfoTip text="週掃描管理,季調倉(差額交易),台股實際費制(買 0.1425%、賣 0.4425% 含稅)、整股制。逐季與回測期望對帳" />
+          </h2>
+          <TwBook tw={data.tw} />
+        </>
+      )}
     </>
   );
 }
