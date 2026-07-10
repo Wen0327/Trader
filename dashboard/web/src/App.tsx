@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchMe, logout } from "./api";
+import { isLocalHost, resolveActive, visibleTabs } from "./lib/tabs";
 import { BacktestPage } from "./pages/BacktestPage";
 import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
@@ -23,9 +24,7 @@ const TABS = {
 } as const;
 type Tab = keyof typeof TABS;
 
-// 開發頁(testnet 操作/回測)只在本機顯示;部署站僅保留研究頁
-const DEV_TABS: readonly Tab[] = ["總覽", "交易", "回測"];
-const IS_LOCAL = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const IS_LOCAL = isLocalHost(window.location.hostname);
 const LS_DEV = "show-dev-tabs";
 
 export default function App() {
@@ -49,16 +48,15 @@ export default function App() {
   if (user === null) return <div className="login-box"><p className="muted">驗證中…</p></div>;
   if (user === "") return <Login onCheck={check} />;
 
-  const visibleTabs = (Object.keys(TABS) as Tab[])
-    .filter((t) => showDev || !DEV_TABS.includes(t));
-  const active = visibleTabs.includes(tab) ? tab : visibleTabs[0];
+  const tabs = visibleTabs(Object.keys(TABS) as Tab[], showDev);
+  const active = resolveActive(tab, tabs);
   const Page = TABS[active];
   return (
     <div className="app">
       <header>
         <h1>Trader</h1>
         <nav>
-          {visibleTabs.map((t) => (
+          {tabs.map((t) => (
             <button key={t} className={t === active ? "active" : ""} onClick={() => setTab(t)}>
               {t}
             </button>
