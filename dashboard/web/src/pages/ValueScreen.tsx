@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { ValueRow } from "../api";
 import { fetchChart, fetchValueScreen, fmtTs } from "../api";
 import { CandleChart } from "../components/CandleChart";
+import { Card } from "../components/Card";
 import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
 
@@ -46,6 +47,42 @@ export function ValueScreen() {
       </p>
 
       {data.market_state && <EntryHint s={data.market_state} />}
+
+      {data.paper && (
+        <>
+          <h2>紙上帳本 <InfoTip text="虛擬 100 萬 TWD 跟隨動量 TOP10 季調倉,台股實際費制(買 0.1425%、賣 0.4425% 含稅)。成交無盤口深度 = 實盤上界;損益如實入帳,用於對帳回測期望" /></h2>
+          <div className="cards">
+            <Card label="權益 (TWD)" value={data.paper.equity.toLocaleString()} />
+            <Card
+              label={`累積報酬(自 ${data.paper.started ?? "—"})`}
+              value={`${data.paper.return_pct > 0 ? "+" : ""}${data.paper.return_pct}%`}
+              tone={data.paper.return_pct >= 0 ? "good" : "bad"}
+            />
+            <Card label="現金" value={data.paper.cash.toLocaleString()} />
+            <Card label="累積交易" value={String(data.paper.n_trades)} />
+          </div>
+          {data.paper.holdings.length > 0 && (
+            <table>
+              <thead>
+                <tr><th>標的</th><th>股數</th><th>進場價</th><th>現價</th><th>損益</th></tr>
+              </thead>
+              <tbody>
+                {data.paper.holdings.map((h) => (
+                  <tr key={h.ticker}>
+                    <td>{h.ticker.replace(/\.TWO?$/, "")} {h.name}</td>
+                    <td>{h.shares.toLocaleString()}</td>
+                    <td>{h.entry_price}</td>
+                    <td>{h.price}</td>
+                    <td className={h.pnl_pct >= 0 ? "good" : "bad"}>
+                      {h.pnl_pct > 0 ? "+" : ""}{h.pnl_pct}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
 
       {data.momentum?.performance && data.momentum.performance.n_rebalances > 1 && (
         <p className="muted">

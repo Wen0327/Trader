@@ -44,6 +44,13 @@ if __name__ == "__main__":
         "performance": forward_performance(),
     }
 
+    # 紙上帳本:跟隨 TOP10 季調倉,台股費制,如實入帳
+    from data.tw_paper import process as paper_process
+    from monitoring import equity_log
+    prices = {r["ticker"]: r["price"] for r in result["rows"] if r.get("price")}
+    result["paper"] = paper_process(picks, prices, rebalanced)
+    equity_log.record("paper_tw", result["paper"]["equity"])
+
     m = result["momentum"]
     picked_rows = [r for r in result["rows"] if r["picked"]]
     print(f"股票池 {result['universe_size']} 檔,動量 TOP{len(picked_rows)} 已選")

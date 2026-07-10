@@ -184,6 +184,17 @@ export type ValueScreenReport = {
     regime_next_q_avg: number;
     regime_win_rate: number;
   };
+  paper?: {
+    equity: number;
+    cash: number;
+    started: string | null;
+    return_pct: number;
+    n_trades: number;
+    holdings: {
+      ticker: string; name: string; shares: number;
+      entry_price: number; price: number; pnl_pct: number;
+    }[];
+  };
 };
 
 export type UsScreenReport = {
