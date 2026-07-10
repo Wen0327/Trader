@@ -245,6 +245,16 @@ def status():
     spot = _track_status("spot", state_store)
     spot["futures"] = _track_status("futures", futures_state_store)
     spot["paper"] = _track_status("paper", paper_state_store)
+
+    # 台股紙上帳本:權益取自快照紀錄(週更),持倉數取自狀態檔
+    from monitoring import equity_log
+    tw_points = equity_log.read("paper_tw")
+    tw_state = StateStore(ROOT / "storage" / "tw_paper_state.json").read()
+    spot["paper_tw"] = {
+        "equity": tw_points[-1]["equity"] if tw_points else None,
+        "updated_at": tw_points[-1]["ts"] if tw_points else None,
+        "positions_count": len(tw_state.get("positions", {})),
+    }
     return spot
 
 

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Quotes, ValueRow } from "../api";
 import {
-  fetchChart, fetchQuotes, fetchStarred, fetchUsScreen, fmtTs, saveStarred,
+  fetchChart, fetchQuotes, fetchStarred, fetchStatus, fetchUsScreen,
+  fmtTs, saveStarred,
 } from "../api";
 import { CandleChart } from "../components/CandleChart";
 import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
@@ -70,6 +71,7 @@ export function UsScreen() {
   const { data, error } = useLoad(fetchUsScreen);
   const live = useLoad(() => fetchQuotes("us"), [],
     { keepPrevious: true, refreshMs: 60_000 });
+  const status = useLoad(fetchStatus, [], { keepPrevious: true, refreshMs: 60_000 });
   const [selected, setSelected] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [desc, setDesc] = useState(true);
@@ -174,6 +176,24 @@ export function UsScreen() {
             <span className="value">{s.heat_12m_pct > 0 ? "+" : ""}{s.heat_12m_pct}%</span>
           </div>
         </div>
+      )}
+
+      {status.data?.paper && Object.keys(status.data.paper.positions).length > 0 && (
+        <>
+          <h2>紙上帳本(US)<InfoTip text="QQQB Regime200 影子帳本,bot 每小時管理。權益總覽見「總覽」頁" /></h2>
+          <table>
+            <thead>
+              <tr><th>標的</th><th>數量</th><th>進場價</th></tr>
+            </thead>
+            <tbody>
+              {Object.entries(status.data.paper.positions).map(([sym, p]) => (
+                <tr key={sym}>
+                  <td>{sym}</td><td>{p.amount}</td><td>{p.entry_price}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
 
       <div className="toolbar">
