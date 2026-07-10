@@ -11,7 +11,7 @@ import { useLoad } from "../hooks/useLoad";
 export function PaperBooks() {
   const { data, error } = useLoad(fetchPaperBooks, [],
     { keepPrevious: true, refreshMs: 60_000 });
-  const [book, setBook] = useState<"us" | "tw">("us");
+  const [book, setBook] = useState<"us" | "us_stocks" | "tw">("us");
   if (error) return <ErrorBox msg={error} />;
   if (!data) return <Loading />;
 
@@ -19,28 +19,107 @@ export function PaperBooks() {
     <>
       <div className="toolbar">
         <button className={book === "us" ? "active" : ""} onClick={() => setBook("us")}>
-          🇺🇸 美股 — QQQB Regime200
+          🇺🇸 QQQB Regime200
+        </button>
+        <button className={book === "us_stocks" ? "active" : ""} onClick={() => setBook("us_stocks")}>
+          🇺🇸 個股 Donchian
         </button>
         <button className={book === "tw" ? "active" : ""} onClick={() => setBook("tw")}>
-          🇹🇼 台股 — 動量 TOP10
+          🇹🇼 動量 TOP10
         </button>
       </div>
 
-      {book === "us" ? (
+      {book === "us" && (
         <>
           <h2>
-            紙上 US
+            紙上 US — QQQB
             <InfoTip text="bot 每小時管理,按幣安公開行情成交(含手續費+滑價,無盤口深度 = 實盤上界)。全額曝險鏡像策略,供 --live 決策對帳" />
           </h2>
           <UsBook us={data.us} />
         </>
-      ) : (
+      )}
+      {book === "us_stocks" && (
+        <>
+          <h2>
+            紙上 US 個股
+            <InfoTip text="只交易「edge 閘門通過 + Donchian 訊號新觸發」的個股(現在合格:ZM/TAN)。每檔 25% 權益、最多 4 檔;既有訊號不追,等新突破 — 每日 21:00 掃描驅動" />
+          </h2>
+          <UsStocksBook b={data.us_stocks} />
+        </>
+      )}
+      {book === "tw" && (
         <>
           <h2>
             紙上 TW
             <InfoTip text="週掃描管理,季調倉(差額交易),台股實際費制(買 0.1425%、賣 0.4425% 含稅)、整股制。逐季與回測期望對帳" />
           </h2>
           <TwBook tw={data.tw} />
+        </>
+      )}
+    </>
+  );
+}
+
+function UsStocksBook({ b }: { b: PaperBooksReport["us_stocks"] }) {
+  const s = b.summary;
+  if (!s) return <Empty msg="個股帳尚未開帳(等待首次每日掃描)" />;
+  return (
+    <>
+      <Cards>
+        <Card label="權益 (USD)" value={s.equity.toLocaleString()} />
+        <Card
+          label={`累積報酬(自 ${s.started ?? "—"})`}
+          value={`${s.return_pct > 0 ? "+" : ""}${s.return_pct}%`}
+          tone={s.return_pct >= 0 ? "good" : "bad"}
+        />
+        <Card label="持倉數" value={`${s.holdings.length}/4`} />
+        <Card label="合格宇宙" value={s.eligible_now.join("、") || "—"} tone="small" />
+      </Cards>
+      {s.holdings.length === 0 ? (
+        <Empty msg="空手 — 等待合格個股的新突破訊號(不追既有訊號)" />
+      ) : (
+        <table>
+          <thead>
+            <tr><th>標的</th><th>股數</th><th>進場價</th><th>現價</th><th>損益</th></tr>
+          </thead>
+          <tbody>
+            {s.holdings.map((h) => (
+              <tr key={h.ticker}>
+                <td>{h.ticker} {h.name}</td>
+                <td>{h.shares}</td>
+                <td>{h.entry_price}</td>
+                <td>{h.price}</td>
+                <td className={h.pnl_pct >= 0 ? "good" : "bad"}>
+                  {h.pnl_pct > 0 ? "+" : ""}{h.pnl_pct}%
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <EquityCurve points={b.equity_curve} />
+      {b.trades.length > 0 && (
+        <>
+          <h2>近期交易</h2>
+          <table>
+            <thead><tr><th>日期</th><th>標的</th><th>方向</th><th>股數</th><th>價格</th><th>損益</th></tr></thead>
+            <tbody>
+              {[...b.trades].reverse().map((t, i) => (
+                <tr key={i}>
+                  <td>{t.date}</td>
+                  <td>{t.ticker} {t.name ?? ""}</td>
+                  <td className={t.side === "buy" ? "good" : "bad"}>
+                    {t.side === "buy" ? "買入" : "賣出"}
+                  </td>
+                  <td>{t.shares}</td>
+                  <td>{t.price}</td>
+                  <td className={t.pnl_pct == null ? "" : t.pnl_pct >= 0 ? "good" : "bad"}>
+                    {t.pnl_pct == null ? "—" : `${t.pnl_pct}%`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </>
       )}
     </>

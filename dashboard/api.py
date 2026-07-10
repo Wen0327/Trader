@@ -273,9 +273,18 @@ def equity_history(track: str = "spot"):
     return snapshots if snapshots else log_parser.equity_points(track)
 
 
+def _paper_reset_at() -> str:
+    meta = ROOT / "storage" / "paper_meta.json"
+    if meta.exists():
+        return json.loads(meta.read_text()).get("reset_at", "")
+    return ""
+
+
 @app.get("/api/trades")
 def trades():
-    return log_parser.trades()
+    reset_at = _paper_reset_at()
+    return [t for t in log_parser.trades()
+            if t["track"] != "paper" or t["ts"] >= reset_at]
 
 
 @app.get("/api/scan")
@@ -417,8 +426,10 @@ def paper_books():
     """紙上帳本彙整:US(bot 管理)+ TW(週掃描管理)。"""
     from monitoring import equity_log
 
+    reset_at = _paper_reset_at()
     us_state = paper_state_store.read()
-    us_trades = [t for t in log_parser.trades() if t["track"] == "paper"]
+    us_trades = [t for t in log_parser.trades()
+                 if t["track"] == "paper" and t["ts"] >= reset_at]
     us_points = equity_log.read("paper")
 
     tw_state = StateStore(ROOT / "storage" / "tw_paper_state.json").read()
@@ -428,12 +439,24 @@ def paper_books():
     except FileNotFoundError:
         tw_report = None
 
+    us_stock_state = StateStore(ROOT / "storage" / "us_stock_paper_state.json").read()
+    us_stock_points = equity_log.read("paper_us_stocks")
+    try:
+        us_stock_report = scan_store.latest("bstocks_scan").get("us_stock_paper")
+    except FileNotFoundError:
+        us_stock_report = None
+
     return {
         "us": {
             "equity": us_points[-1]["equity"] if us_points else None,
             "positions": us_state.get("positions", {}),
             "trades": us_trades[-20:],
             "equity_curve": us_points,
+        },
+        "us_stocks": {
+            "summary": us_stock_report,  # equity/holdings/eligible_now
+            "trades": us_stock_state.get("trades", [])[-20:],
+            "equity_curve": us_stock_points,
         },
         "tw": {
             "summary": tw_report,  # equity/cash/return_pct/holdings

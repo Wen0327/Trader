@@ -105,6 +105,16 @@ def enrich_with_news(report: dict) -> int:
             w["edge_passed"] = v["passed"]
             w["edge_score"] = f"{v['wins']}/{v['total']}"
 
+    # 美股個股紙上帳:只交易「edge 通過 + 訊號新觸發」者
+    from data.us_stock_paper import process as us_stock_process
+    from monitoring import equity_log
+    book = us_stock_process(report["rotation"]["watchlist"])
+    report["us_stock_paper"] = book
+    equity_log.record("paper_us_stocks", book["equity"])
+    if book["events"]:
+        from monitoring.notify import send as notify_send
+        notify_send("\n".join(book["events"]))
+
     # 狀態變遷 → Discord 通知(首次執行只存基準)
     from monitoring.notify import send
     from monitoring.transitions import detect
