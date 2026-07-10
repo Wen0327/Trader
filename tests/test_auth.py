@@ -62,3 +62,37 @@ class TestSession:
         s = store(tmp_path)
         assert s.get_email(None) is None
         assert s.get_email("nope") is None
+
+
+class TestRateLimiter:
+    """公網暴露後 /auth/request 的防騷擾閘門:同 IP 滑動視窗限流。"""
+
+    def _limiter(self):
+        from dashboard.auth import RateLimiter
+        return RateLimiter(max_hits=3, window_sec=900)
+
+    def test_allows_within_limit(self):
+        rl = self._limiter()
+        assert all(rl.allow("1.2.3.4") for _ in range(3))
+
+    def test_blocks_over_limit(self):
+        rl = self._limiter()
+        for _ in range(3):
+            rl.allow("1.2.3.4")
+        assert rl.allow("1.2.3.4") is False
+
+    def test_ips_isolated(self):
+        rl = self._limiter()
+        for _ in range(3):
+            rl.allow("1.2.3.4")
+        assert rl.allow("5.6.7.8") is True  # 別的 IP 不受影響
+
+    def test_window_slides(self, monkeypatch):
+        rl = self._limiter()
+        now = [1000.0]
+        monkeypatch.setattr("dashboard.auth.time.time", lambda: now[0])
+        for _ in range(3):
+            rl.allow("1.2.3.4")
+        assert rl.allow("1.2.3.4") is False
+        now[0] += 901  # 視窗滑過 → 解封
+        assert rl.allow("1.2.3.4") is True

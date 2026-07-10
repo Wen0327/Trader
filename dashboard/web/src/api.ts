@@ -1,4 +1,5 @@
-const BASE = "http://localhost:8787";
+// dev:Vite 開發伺服器(5173)跨到 API(8787);prod:同源相對路徑(API serve 前端)
+const BASE = import.meta.env.DEV ? "http://localhost:8787" : "";
 
 /** API 時間戳(一律 UTC)→ 本地時間 "YYYY-MM-DD HH:mm:ss" 顯示。
  *  支援 "YYYY-MM-DD HH:mm:ss" 與 ISO 格式。 */
