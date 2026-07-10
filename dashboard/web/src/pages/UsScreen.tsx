@@ -83,11 +83,20 @@ export function UsScreen() {
     return new Set();
   });
 
-  // 伺服器為真相來源(系統端讀得到);localStorage 僅離線備援
+  // 伺服器為真相來源;localStorage 為備援。
+  // 合併語意:伺服器空但本地有 → 本地上傳(防止空清單反向抹掉備份 —
+  // 曾在 per-email 遷移時造成資料遺失)
   useEffect(() => {
     fetchStarred("us")
-      .then((r) => setStarred(new Set(r.tickers)))
+      .then((r) => {
+        if (r.tickers.length === 0 && starred.size > 0) {
+          saveStarred("us", [...starred]).catch(() => {});
+        } else {
+          setStarred(new Set(r.tickers));
+        }
+      })
       .catch(() => { /* API 不在線時沿用 localStorage */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
