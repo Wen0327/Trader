@@ -42,6 +42,7 @@
 - `storage/`、`reports/`、`.env` 不進 git
 
 ## Git 工作流程(2026-07-10 定案)
+- **main 分支永不刪除、永不 force-push**(私有 repo 無 branch protection,靠此規範硬性遵守)
 - **不直接 push main**。開發/修 bug 一律從 main 開分支:`feat/...`、`fix/...`(其他:`chore/`、`test/`、`ci/`)
 - 功能完成 → 開 PR → CI(pytest + vitest + lint + build)綠燈才合併
 - 合併後分支自動刪除(repo 已設 delete_branch_on_merge)
