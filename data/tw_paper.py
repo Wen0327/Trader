@@ -138,7 +138,8 @@ def process(picks: list[dict], prices: dict[str, float],
 
 
 def process_d(picks: list[dict], prices: dict[str, float],
-              rebalance_due: bool) -> dict:
+              rebalance_due: bool, state_path: Path = STATE_PATH_D,
+              signal: dict | None = None) -> dict:
     """🧪 D 版:A 版 + 恐慌部署狀態機。
 
     normal   → 0050 破 200MA:賣出各持倉 25% 入預備金(reserved)
@@ -147,13 +148,13 @@ def process_d(picks: list[dict], prices: dict[str, float],
     deployed → 站回 MA:normal
     預備金鎖定,季調倉只能用自由現金。
     """
-    state = _load(STATE_PATH_D)
+    state = _load(state_path)
     state.setdefault("reserve_cash", 0.0)
     state.setdefault("exp_state", "normal")
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     events: list[str] = []
 
-    sig = _tw_market_signal()
+    sig = signal if signal is not None else _tw_market_signal()
     if sig:
         st = state["exp_state"]
         if st == "normal" and sig["below_ma200"]:
@@ -213,12 +214,13 @@ def process_d(picks: list[dict], prices: dict[str, float],
         elif st == "deployed" and not sig["below_ma200"]:
             state["exp_state"] = "normal"
 
-    _save(state, STATE_PATH_D)
+    _save(state, state_path)
     # 常規差額換倉 + 估值(共用主邏輯;預備金不在 cash 內,天然鎖定)
-    out = process(picks, prices, rebalance_due, state_path=STATE_PATH_D)
-    out["equity"] = round(out["equity"] + _load(STATE_PATH_D).get("reserve_cash", 0.0), 0)
-    out["reserve_cash"] = round(_load(STATE_PATH_D).get("reserve_cash", 0.0), 0)
-    out["exp_state"] = _load(STATE_PATH_D).get("exp_state", "normal")
+    out = process(picks, prices, rebalance_due, state_path=state_path)
+    final = _load(state_path)
+    out["equity"] = round(out["equity"] + final.get("reserve_cash", 0.0), 0)
+    out["reserve_cash"] = round(final.get("reserve_cash", 0.0), 0)
+    out["exp_state"] = final.get("exp_state", "normal")
     out["return_pct"] = round((out["equity"] / INITIAL_CASH - 1) * 100, 2)
     out["events"] = events
     return out

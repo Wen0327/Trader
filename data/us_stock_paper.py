@@ -18,20 +18,20 @@ POSITION_PCT = 0.25   # 每檔 25% 權益
 MAX_POSITIONS = 4
 
 
-def _load() -> dict:
-    if STATE_PATH.exists():
-        return json.loads(STATE_PATH.read_text())
+def _load(path: Path = STATE_PATH) -> dict:
+    if path.exists():
+        return json.loads(path.read_text())
     return {"cash": INITIAL_CASH, "positions": {}, "started": None,
             "trades": [], "seen_active": []}
 
 
-def process(watchlist: list[dict]) -> dict:
+def process(watchlist: list[dict], state_path: Path = STATE_PATH) -> dict:
     """輸入:輪動觀察清單(含 edge_passed / status_rank / price)。
 
     首次執行:記錄當下已存續的訊號為基準(不進場)— 只交易新觸發。
     回傳帳本摘要 + 本次事件。
     """
-    state = _load()
+    state = _load(state_path)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     events: list[str] = []
 
@@ -103,8 +103,8 @@ def process(watchlist: list[dict]) -> dict:
             "pnl_pct": round((px / pos["entry_price"] - 1) * 100, 2),
         })
     equity = round(state["cash"] + mv, 2)
-    STATE_PATH.parent.mkdir(exist_ok=True)
-    STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=1))
+    state_path.parent.mkdir(exist_ok=True)
+    state_path.write_text(json.dumps(state, ensure_ascii=False, indent=1))
 
     return {
         "equity": equity,
