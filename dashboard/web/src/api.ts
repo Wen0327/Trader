@@ -98,11 +98,27 @@ export type Backtest = {
   curve: { date: string; strategy: number; benchmark: number }[];
 };
 
+export class UnauthorizedError extends Error {}
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`);
+  const res = await fetch(`${BASE}${path}`, { credentials: "include" });
+  if (res.status === 401) throw new UnauthorizedError();
   if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
   return res.json();
 }
+
+export const fetchMe = () => get<{ email: string }>("/auth/me");
+export const requestLogin = async (email: string) => {
+  const res = await fetch(`${BASE}/auth/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ email }),
+  });
+  return res.json();
+};
+export const logout = () =>
+  fetch(`${BASE}/auth/logout`, { method: "POST", credentials: "include" });
 
 export type FearGreed = { value: number | null; label: string | null };
 
@@ -283,6 +299,7 @@ export const saveStarred = async (market: "us" | "tw", tickers: string[]) => {
   await fetch(`${BASE}/api/starred`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ market, tickers }),
   });
 };

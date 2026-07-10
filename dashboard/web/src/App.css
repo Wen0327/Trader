@@ -126,6 +126,23 @@ tr.clickable:hover td { background: var(--panel); }
 tr.selected td { background: var(--panel); border-left: 2px solid var(--accent); }
 tr.row-dim td { opacity: 0.45; }
 
+.login-box {
+  max-width: 420px; margin: 18vh auto; padding: 36px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  text-align: center;
+}
+.login-box h1 { letter-spacing: 2px; }
+.login-row { display: flex; gap: 10px; margin-top: 18px; }
+.login-row input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px;
+}
+.login-btn {
+  background: var(--accent); border: none; border-radius: 8px;
+  color: #0b0f18; font-weight: 600; padding: 10px 16px; cursor: pointer;
+}
+.login-btn:disabled { opacity: 0.5; cursor: default; }
+
 .chart-drawer {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
   background: var(--bg);

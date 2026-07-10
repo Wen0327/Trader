@@ -222,10 +222,74 @@ app = FastAPI(title="Trader Dashboard API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],  # Vite dev server
-    # 唯讀原則指「無交易操作端點」;PUT 僅用於使用者偏好(精選名單)儲存
-    allow_methods=["GET", "PUT"],
+    # 唯讀原則指「無交易操作端點」;寫入僅限使用者偏好與認證
+    allow_methods=["GET", "PUT", "POST"],
     allow_headers=["*"],
+    allow_credentials=True,  # session cookie
 )
+
+# ── 認證(magic link + session cookie)─────────────────────
+from fastapi import Request
+from fastapi.responses import RedirectResponse
+
+from dashboard.auth import COOKIE_NAME, AuthStore, send_magic_email
+
+auth_store = AuthStore()
+BASE_URL = __import__("os").environ.get("DASH_BASE_URL", "http://localhost:8787")
+
+
+def _session_email(request: Request) -> str | None:
+    return auth_store.get_email(request.cookies.get(COOKIE_NAME))
+
+
+@app.middleware("http")
+async def require_auth(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api/") and _session_email(request) is None:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"detail": "未登入"}, status_code=401)
+    return await call_next(request)
+
+
+@app.post("/auth/request")
+def auth_request(body: dict):
+    email = str(body.get("email", ""))
+    token = auth_store.issue_magic(email)
+    if token:
+        link = f"{BASE_URL}/auth/verify?token={token}"
+        if not send_magic_email(email, link):
+            print(f"[auth] SMTP 未設定,驗證連結:{link}", flush=True)
+    # 無論是否在白名單,回覆一致(不洩漏名單)
+    return {"ok": True, "message": "若該 email 有權限,驗證信已寄出"}
+
+
+@app.get("/auth/verify")
+def auth_verify(token: str):
+    email = auth_store.redeem_magic(token)
+    if not email:
+        raise HTTPException(400, "連結無效或已過期,請重新申請")
+    sid = auth_store.create_session(email)
+    resp = RedirectResponse("http://localhost:5173/")
+    resp.set_cookie(COOKIE_NAME, sid, max_age=90 * 86400,
+                    httponly=True, samesite="lax")
+    return resp
+
+
+@app.get("/auth/me")
+def auth_me(request: Request):
+    email = _session_email(request)
+    if not email:
+        raise HTTPException(401, "未登入")
+    return {"email": email}
+
+
+@app.post("/auth/logout")
+def auth_logout(request: Request):
+    auth_store.revoke(request.cookies.get(COOKIE_NAME))
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(COOKIE_NAME)
+    return resp
 
 
 def _track_status(track: str, store: StateStore) -> dict:
@@ -398,12 +462,14 @@ def _read_starred() -> dict:
 
 
 @app.get("/api/starred")
-def get_starred(market: str = "us"):
-    return {"tickers": _read_starred().get(market, [])}
+def get_starred(request: Request, market: str = "us"):
+    email = _session_email(request)  # middleware 已保證存在
+    return {"tickers": _read_starred().get(email, {}).get(market, [])}
 
 
 @app.put("/api/starred")
-def put_starred(body: dict):
+def put_starred(request: Request, body: dict):
+    email = _session_email(request)
     market = body.get("market")
     tickers = body.get("tickers")
     if market not in ("us", "tw") or not isinstance(tickers, list):
@@ -415,10 +481,10 @@ def put_starred(body: dict):
         from data.value_screen import UNIVERSE
     tickers = [t for t in tickers if t in UNIVERSE]
     data = _read_starred()
-    data[market] = sorted(set(tickers))
+    data.setdefault(email, {})[market] = sorted(set(tickers))
     STARRED_PATH.parent.mkdir(exist_ok=True)
     STARRED_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=1))
-    return {"tickers": data[market]}
+    return {"tickers": data[email][market]}
 
 
 @app.get("/api/paper")
