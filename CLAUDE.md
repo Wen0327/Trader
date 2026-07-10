@@ -40,3 +40,10 @@
 - 策略層只產生訊號,與執行層完全解耦
 - 回測必須包含手續費 + 滑價,訊號 shift(1) 避免前視偏差
 - `storage/`、`reports/`、`.env` 不進 git
+
+## Git 工作流程(2026-07-10 定案)
+- **不直接 push main**。開發/修 bug 一律從 main 開分支:`feat/...`、`fix/...`(其他:`chore/`、`test/`、`ci/`)
+- 功能完成 → 開 PR → CI(pytest + vitest + lint + build)綠燈才合併
+- 合併後分支自動刪除(repo 已設 delete_branch_on_merge)
+- 前端純邏輯放 `dashboard/web/src/lib/` 並配 vitest 測試;重構前先寫測試鎖行為
+- CD:CI 過後自動部署(部署目標定案後補上 deploy job)
