@@ -12,10 +12,12 @@ const CANDLES = [
   { h: 64, o: 78, up: true }, { h: 40, o: 100, up: true },
 ];
 
-export function Login({ onCheck }: { onCheck: () => void }) {
+export function Login({ onCheck }: { onCheck: () => Promise<unknown> }) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [checkMsg, setCheckMsg] = useState("");
 
   const submit = async () => {
     if (!email.includes("@") || busy) return;
@@ -23,9 +25,20 @@ export function Login({ onCheck }: { onCheck: () => void }) {
     try {
       await requestLogin(email);
       setSent(true);
+      setCheckMsg("");
     } finally {
       setBusy(false);
     }
+  };
+
+  // 若已登入,onCheck 會讓 App 直接切走本頁;還停在這裡 = 尚未登入
+  const recheck = async () => {
+    if (checking) return;
+    setChecking(true);
+    setCheckMsg("");
+    await onCheck();
+    setChecking(false);
+    setCheckMsg("⚠ 尚未偵測到登入 — 請先點擊信中的連結,或檢查垃圾信件匣");
   };
 
   return (
@@ -51,8 +64,11 @@ export function Login({ onCheck }: { onCheck: () => void }) {
             <p>📡 驗證信已發射至 <span className="sent-email">{email}</span></p>
             <p className="muted">
               點擊信中連結完成登入,15 分鐘內有效。
-              <button className="link-btn" onClick={onCheck}>我已點擊,重新檢查</button>
+              <button className="link-btn" onClick={recheck} disabled={checking}>
+                {checking ? "檢查中…" : "我已點擊,重新檢查"}
+              </button>
             </p>
+            {checkMsg && <p className="check-msg">{checkMsg}</p>}
             <p className="muted">
               <button className="link-btn" onClick={() => setSent(false)}>
                 ← Email 打錯了?返回重填

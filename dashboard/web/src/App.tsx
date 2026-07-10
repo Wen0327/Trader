@@ -28,10 +28,11 @@ export default function App() {
   // auth: null = 檢查中, "" = 未登入, 其他 = 已登入 email
   const [user, setUser] = useState<string | null>(null);
 
-  const check = useCallback(() => {
-    fetchMe().then((r) => setUser(r.email)).catch(() => setUser(""));
-  }, []);
-  useEffect(check, [check]);
+  const check = useCallback(
+    () => fetchMe().then((r) => setUser(r.email)).catch(() => setUser("")),
+    [],
+  );
+  useEffect(() => { check(); }, [check]);
 
   if (user === null) return <div className="login-box"><p className="muted">驗證中…</p></div>;
   if (user === "") return <Login onCheck={check} />;

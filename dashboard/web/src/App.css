@@ -214,6 +214,15 @@ tr.row-dim td { opacity: 0.45; }
   background: none; border: none; color: var(--accent);
   cursor: pointer; text-decoration: underline; font-size: inherit;
 }
+.link-btn:disabled { color: var(--muted); cursor: default; text-decoration: none; }
+.check-msg {
+  color: #f0b429; font-size: 13px;
+  animation: msg-in 0.25s ease-out;
+}
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 .login-footer {
   position: absolute; bottom: 22px; width: 100%; text-align: center;
   font-size: 10px; letter-spacing: 4px; color: rgba(125, 138, 160, 0.4);
