@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.trading-system.dashboard</string>
+
+    <!-- 只綁 127.0.0.1:對外一律走 Tailscale Funnel 的 HTTPS 反代,LAN 直連不通 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/prophetdigits/projects/trading-system/.venv/bin/python</string>
+        <string>-m</string>
+        <string>uvicorn</string>
+        <string>dashboard.api:app</string>
+        <string>--host</string>
+        <string>127.0.0.1</string>
+        <string>--port</string>
+        <string>8787</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/prophetdigits/projects/trading-system</string>
+
+    <!-- 常駐:掛掉自動重拉;部署用 launchctl kickstart -k 重啟 -->
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/prophetdigits/projects/trading-system/logs/dashboard.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/prophetdigits/projects/trading-system/logs/dashboard.err.log</string>
+</dict>
+</plist>
