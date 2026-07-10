@@ -434,10 +434,14 @@ def paper_books():
 
     tw_state = StateStore(ROOT / "storage" / "tw_paper_state.json").read()
     tw_points = equity_log.read("paper_tw")
+    tw_d_state = StateStore(ROOT / "storage" / "tw_paper_d_state.json").read()
+    tw_d_points = equity_log.read("paper_tw_d")
     try:
-        tw_report = scan_store.latest("value_screen").get("paper")
+        latest_vs = scan_store.latest("value_screen")
+        tw_report = latest_vs.get("paper")
+        tw_d_report = latest_vs.get("paper_d")
     except FileNotFoundError:
-        tw_report = None
+        tw_report = tw_d_report = None
 
     us_stock_state = StateStore(ROOT / "storage" / "us_stock_paper_state.json").read()
     us_stock_points = equity_log.read("paper_us_stocks")
@@ -462,6 +466,11 @@ def paper_books():
             "summary": tw_report,  # equity/cash/return_pct/holdings
             "trades": tw_state.get("trades", [])[-20:],
             "equity_curve": tw_points,
+        },
+        "tw_d": {
+            "summary": tw_d_report,
+            "trades": tw_d_state.get("trades", [])[-20:],
+            "equity_curve": tw_d_points,
         },
     }
 

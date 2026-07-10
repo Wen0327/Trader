@@ -11,7 +11,7 @@ import { useLoad } from "../hooks/useLoad";
 export function PaperBooks() {
   const { data, error } = useLoad(fetchPaperBooks, [],
     { keepPrevious: true, refreshMs: 60_000 });
-  const [book, setBook] = useState<"us" | "us_stocks" | "tw">("us");
+  const [book, setBook] = useState<"us" | "us_stocks" | "tw" | "tw_d">("us");
   if (error) return <ErrorBox msg={error} />;
   if (!data) return <Loading />;
 
@@ -26,6 +26,9 @@ export function PaperBooks() {
         </button>
         <button className={book === "tw" ? "active" : ""} onClick={() => setBook("tw")}>
           🇹🇼 動量 TOP10
+        </button>
+        <button className={book === "tw_d" ? "active" : ""} onClick={() => setBook("tw_d")}>
+          🧪 TW D版(恐慌部署)
         </button>
       </div>
 
@@ -50,10 +53,28 @@ export function PaperBooks() {
       {book === "tw" && (
         <>
           <h2>
-            紙上 TW
+            紙上 TW(A 標準版)
             <InfoTip text="週掃描管理,季調倉(差額交易),台股實際費制(買 0.1425%、賣 0.4425% 含稅)、整股制。逐季與回測期望對帳" />
           </h2>
           <TwBook tw={data.tw} />
+        </>
+      )}
+      {book === "tw_d" && (
+        <>
+          <h2>
+            🧪 紙上 TW(D 恐慌部署版)
+            <InfoTip text="實驗帳:A 版 + 破200MA騰25%預備金、52週回撤-20%時恐慌部署。回測 Sharpe 1.30 vs A 1.26,但僅 ~4 次熊市事件 → 前瞻驗證中,下一次熊市是期末考。與 A 帳平行對照" />
+          </h2>
+          {data.tw_d.summary && (
+            <Cards>
+              <Card label="預備金 (TWD)"
+                value={(data.tw_d.summary.reserve_cash ?? 0).toLocaleString()} />
+              <Card label="狀態機"
+                value={{ normal: "正常", reserved: "已騰預備金", deployed: "已部署" }[
+                  data.tw_d.summary.exp_state ?? "normal"] ?? "—"} />
+            </Cards>
+          )}
+          <TwBook tw={data.tw_d} />
         </>
       )}
     </>

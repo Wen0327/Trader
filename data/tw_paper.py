@@ -12,15 +12,41 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 STATE_PATH = Path(__file__).resolve().parent.parent / "storage" / "tw_paper_state.json"
+STATE_PATH_D = Path(__file__).resolve().parent.parent / "storage" / "tw_paper_d_state.json"
 INITIAL_CASH = 1_000_000.0
 BUY_FEE = 0.001425
 SELL_FEE = 0.001425 + 0.003  # 手續費 + 證交稅
+
+# D 版(🧪 實驗):恐慌部署參數(validate_tw_panic_deploy 驗證,
+# Sharpe 1.30 vs A 1.26,MDD -34.6% vs -37.7%;n≈4 熊市事件 → 前瞻驗證中)
+RESERVE_FRACTION = 0.25   # 破 200MA 時賣出的比例(騰預備金)
+DEPLOY_DD = 0.20          # 0050 距 52 週高跌幅達 -20% → 部署預備金
 
 
 def _load(path: Path = STATE_PATH) -> dict:
     if path.exists():
         return json.loads(path.read_text())
-    return {"cash": INITIAL_CASH, "positions": {}, "started": None, "trades": []}
+    return {"cash": INITIAL_CASH, "positions": {}, "started": None, "trades": [],
+            "reserve_cash": 0.0, "exp_state": "normal"}
+
+
+def _tw_market_signal() -> dict | None:
+    """0050 的 regime 與 52 週回撤(D 版狀態機輸入)。"""
+    import yfinance as yf
+    try:
+        b50 = yf.download("0050.TW", period="2y", auto_adjust=True,
+                          progress=False)["Close"]
+        import pandas as pd
+        if isinstance(b50, pd.DataFrame):
+            b50 = b50.iloc[:, 0]
+        r = b50.pct_change()
+        b50 = (1 + r.mask(r.abs() > 0.11, 0.0).fillna(0.0)).cumprod() * float(b50.iloc[0])
+        return {
+            "below_ma200": bool(b50.iloc[-1] < b50.rolling(200).mean().iloc[-1]),
+            "dd_52w": float(b50.iloc[-1] / b50.rolling(252).max().iloc[-1] - 1),
+        }
+    except Exception:
+        return None
 
 
 def _save(state: dict, path: Path = STATE_PATH) -> None:
@@ -109,3 +135,90 @@ def process(picks: list[dict], prices: dict[str, float],
         "holdings": sorted(holdings, key=lambda h: -h["pnl_pct"]),
         "n_trades": len(state["trades"]),
     }
+
+
+def process_d(picks: list[dict], prices: dict[str, float],
+              rebalance_due: bool) -> dict:
+    """🧪 D 版:A 版 + 恐慌部署狀態機。
+
+    normal   → 0050 破 200MA:賣出各持倉 25% 入預備金(reserved)
+    reserved → 52週回撤 ≤ -20%:預備金按比例加碼現有持倉(deployed,恐慌部署)
+             → 未達門檻即站回 MA:同樣打回(fallback 回補,normal)
+    deployed → 站回 MA:normal
+    預備金鎖定,季調倉只能用自由現金。
+    """
+    state = _load(STATE_PATH_D)
+    state.setdefault("reserve_cash", 0.0)
+    state.setdefault("exp_state", "normal")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    events: list[str] = []
+
+    sig = _tw_market_signal()
+    if sig:
+        st = state["exp_state"]
+        if st == "normal" and sig["below_ma200"]:
+            for t, pos in state["positions"].items():
+                px = prices.get(t)
+                if px is None or pos["shares"] < 4:
+                    continue
+                sell_shares = int(pos["shares"] * RESERVE_FRACTION)
+                if sell_shares <= 0:
+                    continue
+                state["reserve_cash"] += sell_shares * px * (1 - SELL_FEE)
+                pos["shares"] -= sell_shares
+                state["trades"].append({
+                    "date": now, "side": "sell", "ticker": t,
+                    "name": pos.get("name", t), "shares": sell_shares,
+                    "price": px,
+                    "pnl_pct": round((px / pos["entry_price"] - 1) * 100, 2),
+                    "note": "騰預備金",
+                })
+            state["exp_state"] = "reserved"
+            events.append("🧪 D帳:0050 破 200MA — 已騰出 25% 預備金")
+        elif st == "reserved":
+            deploy = None
+            if sig["dd_52w"] <= -DEPLOY_DD:
+                deploy = "恐慌部署"
+            elif not sig["below_ma200"]:
+                deploy = "fallback 回補"
+            if deploy:
+                cash_in = state["reserve_cash"]
+                state["reserve_cash"] = 0.0
+                mv = {t: p["shares"] * prices.get(t, p["entry_price"])
+                      for t, p in state["positions"].items()}
+                total_mv = sum(mv.values()) or 1.0
+                for t, pos in state["positions"].items():
+                    px = prices.get(t)
+                    if px is None:
+                        continue
+                    budget = cash_in * mv[t] / total_mv
+                    add = int(budget / (px * (1 + BUY_FEE)))
+                    if add <= 0:
+                        continue
+                    cost = add * px * (1 + BUY_FEE)
+                    cash_in -= cost
+                    # 加碼後進場價按加權平均更新
+                    old_cost = pos["shares"] * pos["entry_price"]
+                    pos["shares"] += add
+                    pos["entry_price"] = round(
+                        (old_cost + add * px) / pos["shares"], 2)
+                    state["trades"].append({
+                        "date": now, "side": "buy", "ticker": t,
+                        "name": pos.get("name", t), "shares": add,
+                        "price": px, "pnl_pct": None, "note": deploy,
+                    })
+                state["cash"] += cash_in  # 加碼找零回自由現金
+                state["exp_state"] = "deployed" if deploy == "恐慌部署" else "normal"
+                events.append(f"🧪 D帳:{deploy}(52週回撤 {sig['dd_52w']:.0%})")
+        elif st == "deployed" and not sig["below_ma200"]:
+            state["exp_state"] = "normal"
+
+    _save(state, STATE_PATH_D)
+    # 常規差額換倉 + 估值(共用主邏輯;預備金不在 cash 內,天然鎖定)
+    out = process(picks, prices, rebalance_due, state_path=STATE_PATH_D)
+    out["equity"] = round(out["equity"] + _load(STATE_PATH_D).get("reserve_cash", 0.0), 0)
+    out["reserve_cash"] = round(_load(STATE_PATH_D).get("reserve_cash", 0.0), 0)
+    out["exp_state"] = _load(STATE_PATH_D).get("exp_state", "normal")
+    out["return_pct"] = round((out["equity"] / INITIAL_CASH - 1) * 100, 2)
+    out["events"] = events
+    return out

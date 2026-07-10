@@ -259,7 +259,18 @@ export type PaperBooksReport = {
     summary: NonNullable<ValueScreenReport["paper"]> | null;
     trades: {
       date: string; side: "buy" | "sell"; ticker: string; name?: string;
-      shares: number; price: number; pnl_pct: number | null;
+      shares: number; price: number; pnl_pct: number | null; note?: string;
+    }[];
+    equity_curve: EquityPoint[];
+  };
+  tw_d: {
+    summary: (NonNullable<ValueScreenReport["paper"]> & {
+      reserve_cash?: number;
+      exp_state?: string;
+    }) | null;
+    trades: {
+      date: string; side: "buy" | "sell"; ticker: string; name?: string;
+      shares: number; price: number; pnl_pct: number | null; note?: string;
     }[];
     equity_curve: EquityPoint[];
   };
