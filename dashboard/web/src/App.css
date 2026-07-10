@@ -126,22 +126,92 @@ tr.clickable:hover td { background: var(--panel); }
 tr.selected td { background: var(--panel); border-left: 2px solid var(--accent); }
 tr.row-dim td { opacity: 0.45; }
 
-.login-box {
-  max-width: 420px; margin: 18vh auto; padding: 36px;
-  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
-  text-align: center;
+/* ── 登入頁:終端機風 ─────────────────────────── */
+.login-box { display: grid; place-items: center; min-height: 100vh; }
+.login-screen {
+  min-height: 100vh; display: grid; place-items: center;
+  position: relative; overflow: hidden;
+  background:
+    linear-gradient(rgba(79, 156, 249, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79, 156, 249, 0.04) 1px, transparent 1px),
+    var(--bg);
+  background-size: 44px 44px, 44px 44px, auto;
 }
-.login-box h1 { letter-spacing: 2px; }
-.login-row { display: flex; gap: 10px; margin-top: 18px; }
+.login-glow {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(600px 300px at 30% 20%, rgba(79, 156, 249, 0.14), transparent 70%),
+    radial-gradient(500px 320px at 75% 80%, rgba(56, 193, 114, 0.10), transparent 70%);
+  animation: glow-drift 14s ease-in-out infinite alternate;
+}
+@keyframes glow-drift {
+  from { transform: translate(-2%, -1%) scale(1); }
+  to   { transform: translate(2%, 1.5%) scale(1.06); }
+}
+.login-card {
+  position: relative; width: min(460px, 92vw); padding: 44px 40px 36px;
+  background: rgba(26, 33, 48, 0.72);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(79, 156, 249, 0.22);
+  border-radius: 18px; text-align: center;
+  box-shadow: 0 0 60px rgba(79, 156, 249, 0.10),
+              0 24px 60px rgba(0, 0, 0, 0.5);
+}
+.login-candles {
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 7px; height: 120px; margin-bottom: 18px;
+}
+.candle {
+  width: 8px; border-radius: 2px; opacity: 0; transform-origin: bottom;
+  animation: candle-in 0.5s ease-out forwards, candle-pulse 3s ease-in-out infinite;
+}
+.candle.up { background: linear-gradient(180deg, #38c172, #1f7a48); box-shadow: 0 0 8px rgba(56,193,114,.5); }
+.candle.down { background: linear-gradient(180deg, #e3546c, #8f2c3d); box-shadow: 0 0 8px rgba(227,84,108,.45); }
+@keyframes candle-in { from { opacity: 0; transform: scaleY(0); } to { opacity: 1; transform: scaleY(1); } }
+@keyframes candle-pulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.35); } }
+.login-logo {
+  margin: 0; font-size: 40px; letter-spacing: 10px; font-weight: 800;
+  background: linear-gradient(92deg, #4f9cf9 20%, #38c172 80%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.cursor::after {
+  content: "▍"; color: #38c172; -webkit-text-fill-color: #38c172;
+  animation: blink 1.1s steps(1) infinite; margin-left: 2px;
+}
+@keyframes blink { 50% { opacity: 0; } }
+.login-sub {
+  margin: 10px 0 26px; font-size: 11px; letter-spacing: 3px;
+  color: var(--muted);
+}
+.login-row { display: flex; gap: 10px; }
 .login-row input {
-  flex: 1; background: var(--bg); border: 1px solid var(--border);
-  border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px;
+  flex: 1; background: rgba(15, 20, 32, 0.9);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 16px; color: var(--text); font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.login-row input:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79, 156, 249, 0.18);
 }
 .login-btn {
-  background: var(--accent); border: none; border-radius: 8px;
-  color: #0b0f18; font-weight: 600; padding: 10px 16px; cursor: pointer;
+  background: linear-gradient(92deg, #4f9cf9, #38c172);
+  border: none; border-radius: 10px; white-space: nowrap;
+  color: #0b0f18; font-weight: 700; padding: 12px 18px; cursor: pointer;
+  transition: filter 0.2s, transform 0.1s;
 }
+.login-btn:hover { filter: brightness(1.15); }
+.login-btn:active { transform: scale(0.97); }
 .login-btn:disabled { opacity: 0.5; cursor: default; }
+.login-sent p:first-child { font-size: 15px; }
+.link-btn {
+  background: none; border: none; color: var(--accent);
+  cursor: pointer; text-decoration: underline; font-size: inherit;
+}
+.login-footer {
+  position: absolute; bottom: 22px; width: 100%; text-align: center;
+  font-size: 10px; letter-spacing: 4px; color: rgba(125, 138, 160, 0.4);
+}
 
 .chart-drawer {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
