@@ -45,6 +45,7 @@ def process(picks: list[dict], prices: dict[str, float],
             state["cash"] += proceeds
             state["trades"].append({
                 "date": now, "side": "sell", "ticker": t,
+                "name": pos.get("name", t),
                 "shares": pos["shares"], "price": px,
                 "pnl_pct": round((px / pos["entry_price"] - 1) * 100, 2),
             })
@@ -67,6 +68,7 @@ def process(picks: list[dict], prices: dict[str, float],
                 }
                 state["trades"].append({
                     "date": now, "side": "buy", "ticker": p["ticker"],
+                    "name": p["name"],
                     "shares": shares, "price": px, "pnl_pct": None,
                 })
         if first_run:

@@ -137,7 +137,7 @@ function TwBook({ tw }: { tw: PaperBooksReport["tw"] }) {
               {[...tw.trades].reverse().map((t, i) => (
                 <tr key={i}>
                   <td>{t.date}</td>
-                  <td>{t.ticker.replace(/\.TWO?$/, "")}</td>
+                  <td>{t.ticker.replace(/\.TWO?$/, "")} {t.name ?? ""}</td>
                   <td className={t.side === "buy" ? "good" : "bad"}>
                     {t.side === "buy" ? "買入" : "賣出"}
                   </td>

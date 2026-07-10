@@ -237,7 +237,7 @@ export type PaperBooksReport = {
   tw: {
     summary: NonNullable<ValueScreenReport["paper"]> | null;
     trades: {
-      date: string; side: "buy" | "sell"; ticker: string;
+      date: string; side: "buy" | "sell"; ticker: string; name?: string;
       shares: number; price: number; pnl_pct: number | null;
     }[];
     equity_curve: EquityPoint[];
