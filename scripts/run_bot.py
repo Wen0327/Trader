@@ -161,6 +161,13 @@ def run_once(broker: BinanceBroker, risk: RiskManager) -> None:
     portfolio.save()
 
 
+# 紙上軌道 = 單一策略影子帳本:須鏡像被驗證策略的全額曝險,
+# 否則權益曲線與回測期望對不上(2026-07-10 修正:原沿用 10% 失真)。
+PAPER_DEPLOY_PCT = 0.95  # 留 5% 費用/滑價緩衝
+PAPER_RISK = RiskConfig(max_order_pct=0.95, max_position_pct=0.95,
+                        daily_max_drawdown=0.05)
+
+
 def run_paper_once(risk: RiskManager) -> None:
     """紙上軌道:testnet 不支援的標的,自製撮合(價格=幣安公開行情)。"""
     import ccxt
@@ -189,7 +196,7 @@ def run_paper_once(risk: RiskManager) -> None:
                      f"價格={price:.2f}")
 
             if signal > 0 and pos.amount == 0:
-                target_value = equity * PER_POSITION_PCT
+                target_value = equity * PAPER_DEPLOY_PCT
                 amount = broker.amount_to_precision(symbol, target_value / price)
                 risk.check_order(side="buy", order_value=amount * price,
                                  current_position_value=0.0, equity=equity)
@@ -291,7 +298,7 @@ if __name__ == "__main__":
     fdesc = ", ".join(f"{s}:{c['strategy'].name}" for s, c in FUTURES_SHORT_CONFIGS.items())
     log.info(f"Bot 啟動 (testnet, {desc} | 合約: {fdesc})")
 
-    prisk = RiskManager(RiskConfig())
+    prisk = RiskManager(PAPER_RISK)
 
     def tick():
         run_once(broker, risk)
