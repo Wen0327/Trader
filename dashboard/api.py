@@ -232,10 +232,22 @@ app.add_middleware(
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 
-from dashboard.auth import COOKIE_NAME, AuthStore, send_magic_email
+from dashboard.auth import COOKIE_NAME, AuthStore, RateLimiter, send_magic_email
 
 auth_store = AuthStore()
+auth_rate_limiter = RateLimiter(max_hits=5, window_sec=900)
 BASE_URL = __import__("os").environ.get("DASH_BASE_URL", "http://localhost:8787")
+
+
+def _client_ip(request: Request) -> str:
+    # Funnel/反向代理帶 X-Forwarded-For(取第一個);本機直連退回 socket IP
+    fwd = request.headers.get("x-forwarded-for", "")
+    return fwd.split(",")[0].strip() or (request.client.host if request.client else "?")
+
+
+def _is_https(request: Request) -> bool:
+    return (request.url.scheme == "https"
+            or request.headers.get("x-forwarded-proto") == "https")
 
 
 def _session_email(request: Request) -> str | None:
@@ -252,7 +264,9 @@ async def require_auth(request: Request, call_next):
 
 
 @app.post("/auth/request")
-def auth_request(body: dict):
+def auth_request(body: dict, request: Request):
+    if not auth_rate_limiter.allow(_client_ip(request)):
+        raise HTTPException(429, "請求過於頻繁,請 15 分鐘後再試")
     email = str(body.get("email", ""))
     token = auth_store.issue_magic(email)
     if token:
@@ -264,14 +278,15 @@ def auth_request(body: dict):
 
 
 @app.get("/auth/verify")
-def auth_verify(token: str):
+def auth_verify(token: str, request: Request):
     email = auth_store.redeem_magic(token)
     if not email:
         raise HTTPException(400, "連結無效或已過期,請重新申請")
     sid = auth_store.create_session(email)
-    resp = RedirectResponse("http://localhost:5173/")
+    resp = RedirectResponse("/")  # 同源:前端由本 API serve
     resp.set_cookie(COOKIE_NAME, sid, max_age=90 * 86400,
-                    httponly=True, samesite="lax")
+                    httponly=True, samesite="lax",
+                    secure=_is_https(request))  # Funnel(https)下防明文外洩
     return resp
 
 
@@ -547,3 +562,11 @@ def backtest(symbol: str = "BTC/USDT"):
         return backtest_service.run(symbol)
     except FileNotFoundError:
         raise HTTPException(404, f"無 {symbol} 歷史數據,先跑 fetch_data.py")
+
+
+# ── 前端靜態檔(單一網域:API 與 UI 同源,cookie 無跨域問題)──
+# 必須 mount 在最後,讓 /api、/auth 路由優先匹配
+_WEB_DIST = ROOT / "dashboard" / "web" / "dist"
+if _WEB_DIST.exists():
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=_WEB_DIST, html=True), name="web")

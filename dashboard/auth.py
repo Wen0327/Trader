@@ -90,6 +90,28 @@ class AuthStore:
         self._save(self.sessions_path, sessions)
 
 
+class RateLimiter:
+    """同 key(IP)滑動視窗限流,防公網暴露後的登入請求騷擾。
+
+    in-memory 即可:重啟歸零無妨,限流只是騷擾緩解,不是安全邊界。
+    """
+
+    def __init__(self, max_hits: int = 5, window_sec: int = 900):
+        self.max_hits = max_hits
+        self.window_sec = window_sec
+        self._hits: dict[str, list[float]] = {}
+
+    def allow(self, key: str) -> bool:
+        now = time.time()
+        hits = [t for t in self._hits.get(key, []) if t > now - self.window_sec]
+        if len(hits) >= self.max_hits:
+            self._hits[key] = hits
+            return False
+        hits.append(now)
+        self._hits[key] = hits
+        return True
+
+
 def send_magic_email(email: str, link: str) -> bool:
     """寄驗證信。SMTP 未設定 → 回 False(呼叫端 fallback 印 log)。"""
     user = os.environ.get("GMAIL_USER", "").strip()
