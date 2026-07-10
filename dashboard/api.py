@@ -412,6 +412,37 @@ def put_starred(body: dict):
     return {"tickers": data[market]}
 
 
+@app.get("/api/paper")
+def paper_books():
+    """紙上帳本彙整:US(bot 管理)+ TW(週掃描管理)。"""
+    from monitoring import equity_log
+
+    us_state = paper_state_store.read()
+    us_trades = [t for t in log_parser.trades() if t["track"] == "paper"]
+    us_points = equity_log.read("paper")
+
+    tw_state = StateStore(ROOT / "storage" / "tw_paper_state.json").read()
+    tw_points = equity_log.read("paper_tw")
+    try:
+        tw_report = scan_store.latest("value_screen").get("paper")
+    except FileNotFoundError:
+        tw_report = None
+
+    return {
+        "us": {
+            "equity": us_points[-1]["equity"] if us_points else None,
+            "positions": us_state.get("positions", {}),
+            "trades": us_trades[-20:],
+            "equity_curve": us_points,
+        },
+        "tw": {
+            "summary": tw_report,  # equity/cash/return_pct/holdings
+            "trades": tw_state.get("trades", [])[-20:],
+            "equity_curve": tw_points,
+        },
+    }
+
+
 @app.get("/api/backtest")
 def backtest(symbol: str = "BTC/USDT"):
     try:

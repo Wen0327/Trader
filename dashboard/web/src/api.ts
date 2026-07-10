@@ -227,6 +227,24 @@ export const fetchValueScreen = () => get<ValueScreenReport>("/api/value-screen"
 export const fetchUsScreen = () => get<UsScreenReport>("/api/us-screen");
 export const fetchQuotes = (market: "us" | "tw") =>
   get<Quotes>(`/api/quotes?market=${market}`);
+export type PaperBooksReport = {
+  us: {
+    equity: number | null;
+    positions: Record<string, { amount: number; entry_price: number }>;
+    trades: Trade[];
+    equity_curve: EquityPoint[];
+  };
+  tw: {
+    summary: NonNullable<ValueScreenReport["paper"]> | null;
+    trades: {
+      date: string; side: "buy" | "sell"; ticker: string;
+      shares: number; price: number; pnl_pct: number | null;
+    }[];
+    equity_curve: EquityPoint[];
+  };
+};
+
+export const fetchPaperBooks = () => get<PaperBooksReport>("/api/paper");
 export const fetchStarred = (market: "us" | "tw") =>
   get<{ tickers: string[] }>(`/api/starred?market=${market}`);
 export const saveStarred = async (market: "us" | "tw", tickers: string[]) => {

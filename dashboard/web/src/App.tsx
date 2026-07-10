@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BacktestPage } from "./pages/BacktestPage";
 import { Overview } from "./pages/Overview";
+import { PaperBooks } from "./pages/PaperBooks";
 import { Rotation } from "./pages/Rotation";
 import { Scanner } from "./pages/Scanner";
 import { Trades } from "./pages/Trades";
@@ -15,6 +16,7 @@ const TABS = {
   輪動: Rotation,
   台股: ValueScreen,
   美股: UsScreen,
+  帳本: PaperBooks,
   回測: BacktestPage,
 } as const;
 type Tab = keyof typeof TABS;
