@@ -37,11 +37,11 @@ if __name__ == "__main__":
     retU, cleanU = ret[tickers], clean[tickers]
     mom = cleanU.shift(21) / cleanU.shift(252) - 1
     b50 = clean["0050.TW"]
-    below = (b50 < b50.rolling(200).mean()).shift(1).fillna(False)
     idx = adj.index
     q_end_set = set(idx.to_series().groupby(idx.to_period("Q")).max().tolist())
 
-    def run(bear_exposure: float) -> pd.Series:
+    def run(bear_exposure: float, ma_len: int = 200) -> pd.Series:
+        below = (b50 < b50.rolling(ma_len).mean()).shift(1).fillna(False)
         port = pd.Series(0.0, index=idx)
         holdings: list[str] = []
         exp = 1.0
@@ -64,8 +64,13 @@ if __name__ == "__main__":
                 holdings = new
         return port.loc[port.ne(0).idxmax():]
 
-    print(f"{'熊市曝險':<12} {'CAGR':>8} {'MaxDD':>8} {'Sharpe':>7}")
-    for e in (1.0, 0.75, 0.5, 0.25, 0.0):
-        s = stats(run(e))
-        label = "A 不減碼" if e == 1.0 else f"降至 {e * 100:.0f}%"
-        print(f"{label:<12} {s['cagr']:>8.1%} {s['mdd']:>8.1%} {s['sharpe']:>7.2f}")
+    base = stats(run(1.0))
+    print(f"A 不減碼(基準): CAGR {base['cagr']:.1%}  MaxDD {base['mdd']:.1%}  "
+          f"Sharpe {base['sharpe']:.2f}\n")
+    print(f"{'MA\\曝險':<10} {'75%':>20} {'50%':>20} {'0%(全清)':>20}")
+    for ma in (50, 100, 150, 200):
+        cells = []
+        for e in (0.75, 0.5, 0.0):
+            s = stats(run(e, ma))
+            cells.append(f"{s['cagr']:.1%}/{s['mdd']:.0%}/{s['sharpe']:.2f}")
+        print(f"MA{ma:<8} {cells[0]:>20} {cells[1]:>20} {cells[2]:>20}")
