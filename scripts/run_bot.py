@@ -33,24 +33,25 @@ from strategy.donchian import DonchianBreakout
 from strategy.regime import RegimeFilter
 
 FUTURES_STATE_PATH = STATE_PATH.parent / "futures_state.json"
+PAPER_STATE_PATH = STATE_PATH.parent / "paper_state.json"
 
 
 @dataclass(frozen=True)
 class SymbolConfig:
     strategy: Strategy
     signal_ticker: str | None = None  # None = 用幣安自身 K 線;否則用 Yahoo 正股代理
-    tradable: bool = True             # False = 監控模式:只算訊號寫日誌,不下單
+    mode: str = "trade"               # trade=testnet 下單 / paper=紙上撮合 / monitor=只記錄
 
 
 # 每檔標的須通過各自的長歷史驗證(見 scripts/validate_*.py)才可列入。
 # TSLAB 已否決:TSLA 15 年 Donchian 無 edge(1/21)。
-# QQQB:Regime200 於 QQQ 25 年驗證通過(8/9),testnet 無此交易對 →
-#       監控模式,待 --live 實盤試點時轉 tradable。
+# QQQB:Regime200 於 QQQ 25 年驗證通過(8/9)。testnet 無此交易對 →
+#       紙上撮合(價格=幣安公開行情),為 --live 決策累積影子帳本。
 SYMBOL_CONFIGS: dict[str, SymbolConfig] = {
     "BTC/USDT": SymbolConfig(strategy=DonchianBreakout(55, 20)),
     "ETH/USDT": SymbolConfig(strategy=DonchianBreakout(55, 20)),
     "QQQB/USDT": SymbolConfig(
-        strategy=RegimeFilter(200), signal_ticker="QQQ", tradable=False
+        strategy=RegimeFilter(200), signal_ticker="QQQ", mode="paper"
     ),
 }
 PER_POSITION_PCT = 0.10   # 每個標的目標倉位 = 權益 10%(符合單筆訂單上限)
@@ -112,11 +113,12 @@ def run_once(broker: BinanceBroker, risk: RiskManager) -> None:
     log.info(f"權益={equity:.2f} USDT, kill_switch={risk.kill_switch_active}")
 
     for symbol, cfg in SYMBOL_CONFIGS.items():
+        if cfg.mode == "paper":
+            continue  # 紙上軌道由 run_paper_once 處理
         try:
             signal = latest_signal(cfg, symbol)
 
-            if not cfg.tradable:
-                # 監控模式:只記錄訊號,不下單(如 QQQB 待實盤試點)
+            if cfg.mode == "monitor":
                 log.info(f"{symbol}: [監控] {cfg.strategy.name} 訊號={signal:.0f}")
                 continue
 
@@ -154,6 +156,62 @@ def run_once(broker: BinanceBroker, risk: RiskManager) -> None:
             log.warning(f"{symbol}: 風控攔截 — {e}")
         except Exception:
             log.exception(f"{symbol}: 處理失敗(跳過,下次循環重試)")
+
+    portfolio.risk_state = risk.to_dict()
+    portfolio.save()
+
+
+def run_paper_once(risk: RiskManager) -> None:
+    """紙上軌道:testnet 不支援的標的,自製撮合(價格=幣安公開行情)。"""
+    import ccxt
+
+    from execution.paper_broker import PaperBroker
+    public = ccxt.binance()
+    broker = PaperBroker(lambda s: float(public.fetch_ticker(s)["last"]))
+
+    portfolio = Portfolio.load(PAPER_STATE_PATH)
+    risk.restore(portfolio.risk_state)
+    equity = broker.get_balance("USDT") + sum(
+        p.amount * broker.get_price(s)
+        for s, p in portfolio.positions.items() if p.amount > 0)
+    risk.update_equity(equity)
+    equity_log.record("paper", equity)
+    log.info(f"[紙上] 權益={equity:.2f} USDT, kill_switch={risk.kill_switch_active}")
+
+    for symbol, cfg in SYMBOL_CONFIGS.items():
+        if cfg.mode != "paper":
+            continue
+        try:
+            signal = latest_signal(cfg, symbol)
+            pos = portfolio.get(symbol)
+            price = broker.get_price(symbol)
+            log.info(f"[紙上] {symbol}: 訊號={signal:.0f}, 持倉={pos.amount}, "
+                     f"價格={price:.2f}")
+
+            if signal > 0 and pos.amount == 0:
+                target_value = equity * PER_POSITION_PCT
+                amount = broker.amount_to_precision(symbol, target_value / price)
+                risk.check_order(side="buy", order_value=amount * price,
+                                 current_position_value=0.0, equity=equity)
+                result = broker.market_order(symbol, "buy", amount)
+                if result.filled > 0:  # 零成交防護
+                    portfolio.set(symbol, result.filled, result.avg_price or price)
+                    log.info(f"[紙上] {symbol}: 買入 {result.filled} @ "
+                             f"{result.avg_price} (id={result.order_id})")
+
+            elif signal == 0 and pos.amount > 0:
+                result = broker.market_order(symbol, "sell", pos.amount)
+                portfolio.clear(symbol)
+                pnl_pct = ((result.avg_price or price) / pos.entry_price - 1) * 100
+                log.info(f"[紙上] {symbol}: 平倉 {result.filled} @ {result.avg_price} "
+                         f"損益 {pnl_pct:+.2f}% (id={result.order_id})")
+            else:
+                log.info(f"[紙上] {symbol}: 無需調倉")
+
+        except RiskViolation as e:
+            log.warning(f"[紙上] {symbol}: 風控攔截 — {e}")
+        except Exception:
+            log.exception(f"[紙上] {symbol}: 處理失敗(跳過,下次循環重試)")
 
     portfolio.risk_state = risk.to_dict()
     portfolio.save()
@@ -225,16 +283,20 @@ if __name__ == "__main__":
     risk = RiskManager(RiskConfig())
     fbroker = BinanceFuturesTestnetBroker()
     frisk = RiskManager(RiskConfig())
+    mode_tag = {"trade": "", "paper": "[紙上]", "monitor": "[監控]"}
     desc = ", ".join(
-        f"{s}:{c.strategy.name}{'' if c.tradable else '[監控]'}"
+        f"{s}:{c.strategy.name}{mode_tag[c.mode]}"
         for s, c in SYMBOL_CONFIGS.items()
     )
     fdesc = ", ".join(f"{s}:{c['strategy'].name}" for s, c in FUTURES_SHORT_CONFIGS.items())
     log.info(f"Bot 啟動 (testnet, {desc} | 合約: {fdesc})")
 
+    prisk = RiskManager(RiskConfig())
+
     def tick():
         run_once(broker, risk)
         run_futures_once(fbroker, frisk)
+        run_paper_once(prisk)
 
     if args.loop:
         while True:

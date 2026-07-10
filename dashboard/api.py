@@ -28,15 +28,16 @@ class BotLogParser:
     """解析 bot.log。現貨與合約([合約] 前綴)兩軌都認得。"""
 
     EQUITY_RE = re.compile(
-        r"^(?P<ts>[\d-]+ [\d:,]+) INFO (?P<track>\[合約\] )?權益=(?P<equity>[\d.]+) "
+        r"^(?P<ts>[\d-]+ [\d:,]+) INFO (?P<track>\[合約\] |\[紙上\] )?權益=(?P<equity>[\d.]+) "
         r"USDT, kill_switch=(?P<ks>\w+)"
     )
     TRADE_RE = re.compile(
-        r"^(?P<ts>[\d-]+ [\d:,]+) INFO (?P<track>\[合約\] )?(?P<symbol>\S+): "
+        r"^(?P<ts>[\d-]+ [\d:,]+) INFO (?P<track>\[合約\] |\[紙上\] )?(?P<symbol>\S+): "
         r"(?P<action>買入|平倉|開空|回補) (?P<amount>[\d.]+) @ (?P<price>[\d.]+)"
         r"(?: 損益 (?P<pnl>[+-][\d.]+)%)?"
     )
     SIDE = {"買入": "buy", "平倉": "sell", "開空": "short", "回補": "cover"}
+    TRACK = {"[合約] ": "futures", "[紙上] ": "paper"}
 
     def __init__(self, log_path: Path):
         self._path = log_path
@@ -44,9 +45,9 @@ class BotLogParser:
     def _lines(self) -> list[str]:
         return self._path.read_text().splitlines() if self._path.exists() else []
 
-    @staticmethod
-    def _track(m: re.Match) -> str:
-        return "futures" if m["track"] else "spot"
+    @classmethod
+    def _track(cls, m: re.Match) -> str:
+        return cls.TRACK.get(m["track"] or "", "spot")
 
     @staticmethod
     def _to_utc(ts: str) -> str:
@@ -212,6 +213,7 @@ class BacktestService:
 log_parser = BotLogParser(ROOT / "logs" / "bot.log")
 state_store = StateStore(ROOT / "storage" / "bot_state.json")
 futures_state_store = StateStore(ROOT / "storage" / "futures_state.json")
+paper_state_store = StateStore(ROOT / "storage" / "paper_state.json")
 scan_store = ScanStore(ROOT / "reports")
 backtest_service = BacktestService()
 rotation_service = RotationService()
@@ -242,6 +244,7 @@ def _track_status(track: str, store: StateStore) -> dict:
 def status():
     spot = _track_status("spot", state_store)
     spot["futures"] = _track_status("futures", futures_state_store)
+    spot["paper"] = _track_status("paper", paper_state_store)
     return spot
 
 

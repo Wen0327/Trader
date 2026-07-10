@@ -19,7 +19,7 @@ export type TrackStatus = {
   risk_state: { day?: string; day_start_equity?: number; killed?: boolean };
 };
 
-export type Status = TrackStatus & { futures: TrackStatus };
+export type Status = TrackStatus & { futures: TrackStatus; paper: TrackStatus };
 
 export type EquityPoint = { ts: string; equity: number };
 

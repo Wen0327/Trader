@@ -69,6 +69,20 @@ export function Overview() {
       ) : (
         <PositionTable rows={Object.entries(s.futures.positions)} />
       )}
+
+      <h2>紙上軌道 <InfoTip text="testnet 不支援的標的走自製撮合:QQQB 用 QQQ 的 Regime200 訊號,按幣安公開行情成交,含手續費+滑價。為 --live 實盤決策累積影子帳本" /></h2>
+      <Cards>
+        <Card label="紙上權益 (USDT)" value={s.paper?.equity?.toFixed(2) ?? "—"} />
+        <Card
+          label="紙上 Kill Switch"
+          value={s.paper?.kill_switch == null ? "—" : s.paper.kill_switch ? "觸發" : "正常"}
+          tone={s.paper?.kill_switch ? "bad" : "good"}
+        />
+        <Card label="持倉數" value={String(Object.keys(s.paper?.positions ?? {}).length)} />
+      </Cards>
+      {Object.keys(s.paper?.positions ?? {}).length > 0 && (
+        <PositionTable rows={Object.entries(s.paper.positions)} />
+      )}
     </>
   );
 }
