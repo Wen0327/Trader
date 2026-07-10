@@ -34,3 +34,11 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+
+  # CD:CI 全綠且為 main push 時,由 Mac 上的 self-hosted runner 就地部署
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend]
+    runs-on: self-hosted
+    steps:
+      - run: /Users/prophetdigits/projects/trading-system/scripts/deploy.sh
