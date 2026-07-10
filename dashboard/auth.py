@@ -17,7 +17,10 @@ import time
 from email.mime.text import MIMEText
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT / ".env")
 MAGIC_TTL = 15 * 60
 SESSION_TTL = 90 * 86400
 COOKIE_NAME = "trader_session"
