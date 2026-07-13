@@ -17,6 +17,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import ccxt
 
+from monitoring.notify import alert_on_crash
+
+alert_on_crash("每日掃描")
+
 # 已知的 bStocks 交易對(BTech Holdings 發行的代幣化美股/ETF)
 BSTOCKS = [
     "NVDAB/USDT", "TSLAB/USDT", "MSFTB/USDT", "METAB/USDT",

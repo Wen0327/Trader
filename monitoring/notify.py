@@ -29,3 +29,19 @@ def send(message: str) -> None:
         requests.post(webhook, json={"content": message[:1900]}, timeout=10)
     except Exception as e:
         log.warning(f"Discord 通知發送失敗(不影響主流程): {e}")
+
+
+def alert_on_crash(job_name: str) -> None:
+    """排程腳本防沉默失敗:未捕捉例外先發 Discord 警報,再走預設 hook。
+
+    背景:2026-07-13 台股週掃因 Yahoo 斷線 crash,無人知曉、
+    差點爛一週(週更任務下次自動重跑是下週)。
+    在腳本 import 後呼叫一次即生效。
+    """
+    import sys
+
+    def hook(exc_type, exc, tb):
+        send(f"🚨 {job_name} 失敗:{exc_type.__name__}: {exc}")
+        sys.__excepthook__(exc_type, exc, tb)  # traceback 照印、exit code 不變
+
+    sys.excepthook = hook

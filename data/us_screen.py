@@ -96,8 +96,9 @@ CLEAN_LIMIT = 0.60  # 美股無漲跌停,只清分割還原錯誤等級的異常
 def market_snapshot() -> tuple[dict[str, float], dict[str, dict]]:
     """(全池 12-1 動量 %, 個股短線位置)— 與台股同款算法。"""
     tickers = list(UNIVERSE)
-    adj = yf.download(tickers, period="2y", auto_adjust=True,
-                      progress=False)["Close"]
+    from data.yahoo_feed import retry_download
+    adj = retry_download(lambda: yf.download(
+        tickers, period="2y", auto_adjust=True, progress=False)["Close"])
     ret = adj.pct_change().fillna(0.0)
     clean = (1 + ret.mask(ret.abs() > CLEAN_LIMIT, 0.0)).cumprod()
     clean = clean.mask(adj.isna())  # 上市前空白不得偽造平線歷史(SPCX 教訓)
