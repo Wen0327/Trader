@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ValueRow } from "../api";
-import { fetchChart, fetchValueScreen, fmtTs } from "../api";
+import { fetchChart, fetchQuotes, fetchValueScreen, fmtTs } from "../api";
 import { CandleChart } from "../components/CandleChart";
 import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
@@ -10,6 +10,8 @@ type SortKey = "momentum_pct" | "range_pos_20d" | "price"
 
 export function ValueScreen() {
   const { data, error } = useLoad(fetchValueScreen);
+  const live = useLoad(() => fetchQuotes("tw"), [],
+    { keepPrevious: true, refreshMs: 60_000 });
   const [selected, setSelected] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [desc, setDesc] = useState(true);
@@ -63,7 +65,10 @@ export function ValueScreen() {
             <th className="sortable" onClick={() => onSort("range_pos_20d")}>
               短線位置{arrow("range_pos_20d")} <InfoTip text="(現價−20日低)÷(20日高−20日低)。🟢 回調位 = <40% 且在自身200MA上,分批進場友善;🔴 短線高檔 = >70% 貼頂。執行輔助標示,未驗證 alpha,不影響模型選股" />
             </th>
-            <th className="sortable" onClick={() => onSort("price")}>股價{arrow("price")}</th>
+            <th className="sortable" onClick={() => onSort("price")}>
+              股價{arrow("price")} <InfoTip text="即時報價(Yahoo,約 15 分鐘延遲),每 60 秒更新;抓不到時退回週掃快照。排序仍按快照價" />
+            </th>
+            <th>今日</th>
             <th className="sortable" onClick={() => onSort("dividend_yield")}>殖利率{arrow("dividend_yield")}</th>
             <th className="sortable" onClick={() => onSort("revenue_growth")}>營收成長{arrow("revenue_growth")}</th>
             <th className="sortable" onClick={() => onSort("profit_margin")}>獲利率{arrow("profit_margin")}</th>
@@ -93,7 +98,18 @@ export function ValueScreen() {
                   </span>
                 ) : "—"}
               </td>
-              <td>{r.price}</td>
+              <td>{live.data?.quotes[r.ticker]?.price ?? r.price}</td>
+              <td>
+                {(() => {
+                  const q = live.data?.quotes[r.ticker];
+                  if (!q) return "—";
+                  return (
+                    <span className={q.today_pct >= 0 ? "good" : "bad"}>
+                      {q.today_pct > 0 ? "+" : ""}{q.today_pct}%
+                    </span>
+                  );
+                })()}
+              </td>
               <td className="muted">{r.dividend_yield != null ? `${r.dividend_yield}%` : "—"}</td>
               <td className="muted">
                 {r.revenue_growth != null ? `${r.revenue_growth > 0 ? "+" : ""}${r.revenue_growth}%` : "—"}
