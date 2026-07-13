@@ -63,15 +63,10 @@ if __name__ == "__main__":
 
     lines = [f"## 📈 台股動量 TOP10(週報){datetime.now(timezone.utc):%Y-%m-%d}"
              + (" — 本週調倉" if m["rebalanced"] else "")]
-    rows = ["代號      名稱       動量    殖利率  營收成長   PE"]
-    for r in picked_rows:
-        dy = f"{r['dividend_yield']}%" if r["dividend_yield"] is not None else "—"
-        rg = f"{r['revenue_growth']:+.1f}%" if r["revenue_growth"] is not None else "—"
-        rows.append(
-            f"{r['ticker'].replace('.TW','').replace('.TWO',''):<6}"
-            f"{r['name']:　<5}"
-            f"{r['momentum_pct']:>+7.1f}%  {dy:>6}  {rg:>7}  "
-            f"{r['pe'] if r['pe'] else '—':>5}")
+    # 只列名單,數據欄看儀表板即可(2026-07-13 使用者要求精簡)
+    # 注意順序:先 .TWO 再 .TW,否則 3529.TWO 會被咬成 3529O
+    rows = [f"{r['ticker'].replace('.TWO', '').replace('.TW', ''):<6}{r['name']}"
+            for r in picked_rows]
     lines.append("```\n" + "\n".join(rows) + "\n```")
     perf = m["performance"]
     if perf and perf["n_rebalances"] > 1:
