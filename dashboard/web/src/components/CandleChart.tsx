@@ -4,6 +4,7 @@ import {
 } from "lightweight-charts";
 import type { IChartApi, SeriesMarker, Time } from "lightweight-charts";
 import type { TickerSeries } from "../api";
+import { isIntraday, toChartTime } from "../lib/chartTime";
 
 type Props = {
   data: TickerSeries;
@@ -20,6 +21,10 @@ export function CandleChart({ data, showBreakouts, height = 360 }: Props) {
     const el = containerRef.current;
     if (!el) return;
 
+    const intraday = isIntraday(data.series);
+    const tz = new Date().getTimezoneOffset();
+    const t = (d: string) => toChartTime(d, tz) as Time;
+
     const chart = createChart(el, {
       height,
       layout: {
@@ -32,7 +37,11 @@ export function CandleChart({ data, showBreakouts, height = 360 }: Props) {
       },
       crosshair: { mode: CrosshairMode.Normal },
       rightPriceScale: { borderColor: "#2a3446" },
-      timeScale: { borderColor: "#2a3446" },
+      timeScale: {
+        borderColor: "#2a3446",
+        timeVisible: intraday,  // 分鐘級才顯示時刻
+        secondsVisible: false,
+      },
       autoSize: true,
     });
     chartRef.current = chart;
@@ -46,7 +55,7 @@ export function CandleChart({ data, showBreakouts, height = 360 }: Props) {
       wickDownColor: "#e3546c99",
     });
     candles.setData(data.series.map((p) => ({
-      time: p.date as Time,
+      time: t(p.date),
       open: p.open, high: p.high, low: p.low, close: p.close,
     })));
 
@@ -65,7 +74,7 @@ export function CandleChart({ data, showBreakouts, height = 360 }: Props) {
       line.setData(
         data.series
           .filter((p) => p[key] != null)
-          .map((p) => ({ time: p.date as Time, value: p[key] as number })),
+          .map((p) => ({ time: t(p.date), value: p[key] as number })),
       );
     };
     overlay("ma200", "#f0b429", false, "200MA");
@@ -76,7 +85,7 @@ export function CandleChart({ data, showBreakouts, height = 360 }: Props) {
       const markers: SeriesMarker<Time>[] = data.series
         .filter((p) => p.breakout)
         .map((p) => ({
-          time: p.date as Time,
+          time: t(p.date),
           position: "belowBar",
           color: "#38c172",
           shape: "arrowUp",

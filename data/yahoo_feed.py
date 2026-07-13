@@ -32,6 +32,39 @@ def retry_download(fetch: Callable[[], pd.DataFrame],
         f"Yahoo 批量下載全數失敗(重試 {attempts} 次,間隔 {delay_sec}s)")
 
 
+# 分鐘級抓取範圍(受 Yahoo 限制:分鐘級最多 60 天、1h 最多 730 天)
+INTRADAY_PERIOD = {"5m": "5d", "15m": "1mo", "30m": "1mo",
+                   "1h": "3mo", "4h": "6mo"}
+
+
+def resample_4h(df: pd.DataFrame) -> pd.DataFrame:
+    """1h → 4h 合成(Yahoo 無原生 4h)。休市空檔不補棒、尾端未滿 4 根保留。"""
+    out = df.resample("4h").agg({
+        "open": "first", "high": "max", "low": "min",
+        "close": "last", "volume": "sum",
+    })
+    return out.dropna(subset=["open"])
+
+
+def fetch_intraday(ticker: str, interval: str) -> pd.DataFrame:
+    """分鐘/小時級 K 線。index 一律 UTC;4h 由 1h 重採樣。"""
+    if interval not in INTRADAY_PERIOD:
+        raise ValueError(f"不支援的 interval: {interval}")
+    df = yf.download(
+        ticker,
+        period=INTRADAY_PERIOD[interval],
+        interval="1h" if interval == "4h" else interval,
+        progress=False,
+        auto_adjust=True,
+    )
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    df = df.rename(columns=str.lower)[["open", "high", "low", "close", "volume"]]
+    df.index = pd.to_datetime(df.index, utc=True)
+    df.index.name = "timestamp"
+    return resample_4h(df) if interval == "4h" else df
+
+
 def fetch_ohlcv(ticker: str, lookback_days: int = 400) -> pd.DataFrame:
     df = yf.download(
         ticker,

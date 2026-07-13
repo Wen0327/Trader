@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Quotes, ValueRow } from "../api";
+import type { ChartInterval, Quotes, ValueRow } from "../api";
 import {
   fetchChart, fetchQuotes, fetchStarred, fetchUsScreen,
   fmtTs, saveStarred,
 } from "../api";
 import { CandleChart } from "../components/CandleChart";
 import { ErrorBox, InfoTip, Loading } from "../components/Feedback";
+import { IntervalPicker } from "../components/IntervalPicker";
 import { useLoad } from "../hooks/useLoad";
 
 type SortKey = "momentum_pct" | "range_pos_20d" | "price"
@@ -268,8 +269,9 @@ export function UsScreen() {
 }
 
 function UsChartDrawer({ ticker, onClose }: { ticker: string; onClose: () => void }) {
+  const [interval, setInterval] = useState<ChartInterval>("1d");
   const { data, error, fetching } = useLoad(
-    () => fetchChart(ticker), [ticker], { keepPrevious: true },
+    () => fetchChart(ticker, interval), [ticker, interval], { keepPrevious: true },
   );
   return (
     <div className="chart-drawer">
@@ -277,9 +279,12 @@ function UsChartDrawer({ ticker, onClose }: { ticker: string; onClose: () => voi
         <strong>
           {ticker} — {data && data.ticker === ticker ? data.label : "載入中…"}
         </strong>
-        <span className="muted chart-legend" style={{ marginTop: 0 }}>
-          黃 200MA ｜ 綠虛 55日高 ｜ 紅虛 20日低
-        </span>
+        <IntervalPicker value={interval} onChange={setInterval} />
+        {interval === "1d" && (
+          <span className="muted chart-legend" style={{ marginTop: 0 }}>
+            黃 200MA ｜ 綠虛 55日高 ｜ 紅虛 20日低
+          </span>
+        )}
         <button className="drawer-close" onClick={onClose} aria-label="關閉">✕</button>
       </div>
       {error && <ErrorBox msg={error} />}

@@ -116,10 +116,10 @@ class RotationService:
     def __init__(self):
         self._cache: dict[str, tuple[float, object]] = {}
 
-    def _cached(self, key: str, builder):
+    def _cached(self, key: str, builder, ttl: int | None = None):
         import time
         hit = self._cache.get(key)
-        if hit and time.time() - hit[0] < self.TTL:
+        if hit and time.time() - hit[0] < (ttl or self.TTL):
             return hit[1]
         value = builder()
         self._cache[key] = (time.time(), value)
@@ -149,15 +149,37 @@ class RotationService:
             return out
         return self._cached("ratios", build)
 
-    def ticker_series(self, ticker: str) -> dict:
+    def ticker_series(self, ticker: str, interval: str = "1d") -> dict:
         from data.rotation import WATCHLIST
         from data.us_screen import UNIVERSE as US_UNIVERSE
         from data.value_screen import UNIVERSE
-        from data.yahoo_feed import fetch_ohlcv
+        from data.yahoo_feed import fetch_ohlcv, fetch_intraday
 
         allowed = {**WATCHLIST, **UNIVERSE, **US_UNIVERSE}  # 輪動 + 台股 + 美股池
         if ticker not in allowed:
             raise KeyError(ticker)
+
+        if interval != "1d":
+            # 分鐘/小時級:純 OHLC,無疊加線(200MA/55/20 是日線模型的參照)
+            def build_intraday():
+                df = fetch_intraday(ticker, interval)  # index 為 UTC
+                return {
+                    "ticker": ticker,
+                    "label": allowed[ticker],
+                    "series": [
+                        {"date": d.strftime("%Y-%m-%d %H:%M"),
+                         "open": round(float(o), 2), "high": round(float(h), 2),
+                         "low": round(float(l), 2), "close": round(float(c), 2),
+                         "ma200": None, "hi55": None, "lo20": None,
+                         "breakout": False}
+                        for d, o, h, l, c in zip(
+                            df.index, df["open"], df["high"],
+                            df["low"], df["close"])
+                    ],
+                }
+            # 短 TTL:分鐘線要跟得上盤中
+            return self._cached(f"ticker:{ticker}:{interval}",
+                                build_intraday, ttl=300)
 
         def build():
             df = fetch_ohlcv(ticker, lookback_days=730)
@@ -396,10 +418,12 @@ def rotation_ticker(symbol: str):
 
 
 @app.get("/api/chart")
-def chart(symbol: str):
-    """通用單檔 K 線(白名單:輪動觀察清單 + 台股價值池)。"""
+def chart(symbol: str, interval: str = "1d"):
+    """通用單檔 K 線(白名單:輪動觀察清單 + 台股/美股池)。"""
+    if interval not in ("1d", "5m", "15m", "30m", "1h", "4h"):
+        raise HTTPException(400, f"不支援的 interval: {interval}")
     try:
-        return rotation_service.ticker_series(symbol)
+        return rotation_service.ticker_series(symbol, interval)
     except KeyError:
         raise HTTPException(404, f"{symbol} 不在白名單")
 

@@ -307,7 +307,9 @@ export const saveStarred = async (market: "us" | "tw", tickers: string[]) => {
 export const fetchRotation = () => get<Rotation>("/api/rotation");
 export const fetchRotationTicker = (symbol: string) =>
   get<TickerSeries>(`/api/rotation/ticker?symbol=${encodeURIComponent(symbol)}`);
-export const fetchChart = (symbol: string) =>
-  get<TickerSeries>(`/api/chart?symbol=${encodeURIComponent(symbol)}`);
+export type ChartInterval = "5m" | "15m" | "30m" | "1h" | "4h" | "1d";
+export const fetchChart = (symbol: string, interval: ChartInterval = "1d") =>
+  get<TickerSeries>(
+    `/api/chart?symbol=${encodeURIComponent(symbol)}&interval=${interval}`);
 export const fetchBacktest = (symbol: string) =>
   get<Backtest>(`/api/backtest?symbol=${encodeURIComponent(symbol)}`);
