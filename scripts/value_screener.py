@@ -11,9 +11,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from data.value_screen import screen
-from monitoring.notify import send
+from monitoring.notify import alert_on_crash, send
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent / "reports"
+alert_on_crash("台股週掃")
 
 if __name__ == "__main__":
     result = screen()

@@ -13,9 +13,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from data.us_screen import SECTOR_OF, TIER2, UNIVERSE, market_snapshot, spy_state
 from data.value_screen import fetch_metrics
-from monitoring.notify import send
+from monitoring.notify import alert_on_crash, send
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent / "reports"
+alert_on_crash("美股週掃")
 
 if __name__ == "__main__":
     momentum, tech = market_snapshot()

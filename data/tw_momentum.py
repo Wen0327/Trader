@@ -16,6 +16,7 @@ import pandas as pd
 import yfinance as yf
 
 from data.value_screen import UNIVERSE
+from data.yahoo_feed import retry_download
 
 TRACK_PATH = Path(__file__).resolve().parent.parent / "storage" / "tw_momentum_track.json"
 LOOKBACK, SKIP, TOP_N = 252, 21, 10
@@ -39,8 +40,8 @@ def market_snapshot() -> tuple[dict[str, float], dict[str, dict]]:
       pullback  = range_pos < 40 且仍在自身 200MA 上
     """
     tickers = list(UNIVERSE)
-    adj = yf.download(tickers, period="2y", auto_adjust=True,
-                      progress=False)["Close"]
+    adj = retry_download(lambda: yf.download(
+        tickers, period="2y", auto_adjust=True, progress=False)["Close"])
     clean = (1 + _clean_returns(adj)).cumprod()
     clean = clean.mask(adj.isna())  # 上市前空白不得偽造平線歷史
     momentum = (clean.shift(SKIP) / clean.shift(LOOKBACK) - 1).iloc[-1].dropna()
