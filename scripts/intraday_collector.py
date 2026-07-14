@@ -15,21 +15,9 @@ import yfinance as yf
 
 from data.intraday_store import drop_live_bar, load, merge_bars, save
 from data.yahoo_feed import retry_download
-from monitoring.notify import alert_on_crash, send
+from monitoring.notify import alert_on_crash
 
-alert_on_crash("分鐘數據累積")
-
-
-def send_chunked(header: str, lines: list[str], limit: int = 1800) -> None:
-    """Discord 單則上限 ~1900 字,超過會被截斷 → 分段送。"""
-    buf = header
-    for line in lines:
-        if len(buf) + len(line) + 1 > limit:
-            send(buf)
-            buf = line
-        else:
-            buf += "\n" + line
-    send(buf)
+alert_on_crash("分鐘數據累積")  # 整支腳本 crash 仍會通知(沉默失敗防護)
 
 
 def universe() -> list[str]:
@@ -64,7 +52,7 @@ if __name__ == "__main__":
     fresh_tickers = [t for t in tickers if load(t) is None]
     known_tickers = [t for t in tickers if t not in set(fresh_tickers)]
 
-    events: list[str] = []   # 需要人知道的(重刻/衝突)→ Discord + log
+    events: list[str] = []   # 重刻/衝突事件 → 只落 log(2026-07-14 使用者要求退出 DC)
     stats = {"append": 0, "rescaled": 0, "healed": 0,
              "conflict": 0, "no_data": 0}
 
@@ -93,6 +81,4 @@ if __name__ == "__main__":
     print(f"分鐘數據累積完成:{stats}(池 {len(tickers)} 檔,"
           f"首見回填 {len(fresh_tickers)} 檔)")
     for e in events:
-        print(e)  # 事件同步落 log,Discord 被截斷也能事後稽核
-    if events:
-        send_chunked("## 🗄 分鐘數據累積事件", events)
+        print(e)  # 落 log 供事後稽核(logs/intraday.out.log)
