@@ -13,11 +13,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pandas as pd
 import yfinance as yf
 
-from data.intraday_store import load, merge_bars, save
+from data.intraday_store import drop_live_bar, load, merge_bars, save
 from data.yahoo_feed import retry_download
 from monitoring.notify import alert_on_crash, send
 
 alert_on_crash("分鐘數據累積")
+
+
+def send_chunked(header: str, lines: list[str], limit: int = 1800) -> None:
+    """Discord 單則上限 ~1900 字,超過會被截斷 → 分段送。"""
+    buf = header
+    for line in lines:
+        if len(buf) + len(line) + 1 > limit:
+            send(buf)
+            buf = line
+        else:
+            buf += "\n" + line
+    send(buf)
 
 
 def universe() -> list[str]:
@@ -43,7 +55,8 @@ def extract(batch: pd.DataFrame, ticker: str) -> pd.DataFrame | None:
     if df.empty:
         return None
     df.index = pd.to_datetime(df.index, utc=True)
-    return df
+    df = drop_live_bar(df)  # 盤中抓取:未收完的活棒不進庫
+    return df if len(df) else None
 
 
 if __name__ == "__main__":
@@ -51,8 +64,9 @@ if __name__ == "__main__":
     fresh_tickers = [t for t in tickers if load(t) is None]
     known_tickers = [t for t in tickers if t not in set(fresh_tickers)]
 
-    events: list[str] = []
-    stats = {"append": 0, "rescaled": 0, "conflict": 0, "no_data": 0}
+    events: list[str] = []   # 需要人知道的(重刻/衝突)→ Discord + log
+    stats = {"append": 0, "rescaled": 0, "healed": 0,
+             "conflict": 0, "no_data": 0}
 
     for group, period in ((fresh_tickers, "60d"), (known_tickers, "5d")):
         if not group:
@@ -71,9 +85,14 @@ if __name__ == "__main__":
                 if r.action == "rescaled":
                     events.append(
                         f"🔔 {t} 偵測到調整因子 {r.factor:.4f},本地歷史已重刻")
+                elif r.action == "healed":
+                    # 活棒定稿自癒屬預期行為:只進 log,不吵 Discord
+                    print(f"[heal] {t} 少量暫值棒已以定稿覆蓋")
             stats[r.action] += 1
 
     print(f"分鐘數據累積完成:{stats}(池 {len(tickers)} 檔,"
           f"首見回填 {len(fresh_tickers)} 檔)")
+    for e in events:
+        print(e)  # 事件同步落 log,Discord 被截斷也能事後稽核
     if events:
-        send("## 🗄 分鐘數據累積事件\n" + "\n".join(events))
+        send_chunked("## 🗄 分鐘數據累積事件", events)
