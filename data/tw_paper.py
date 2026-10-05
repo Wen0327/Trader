@@ -11,6 +11,9 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
+import yfinance as yf
+
 STATE_PATH = Path(__file__).resolve().parent.parent / "storage" / "tw_paper_state.json"
 STATE_PATH_D = Path(__file__).resolve().parent.parent / "storage" / "tw_paper_d_state.json"
 INITIAL_CASH = 1_000_000.0
@@ -28,6 +31,45 @@ def _load(path: Path = STATE_PATH) -> dict:
         return json.loads(path.read_text())
     return {"cash": INITIAL_CASH, "positions": {}, "started": None, "trades": [],
             "reserve_cash": 0.0, "exp_state": "normal"}
+
+
+def _adjust_splits(state: dict) -> list[str]:
+    """檢查持倉是否有未調整的股票分割,調整 shares 與 entry_price。
+
+    以 entry_date 後發生的分割為基準;已調整過的用 last_split_adjusted
+    欄位追蹤,避免重複套用。
+    """
+    events: list[str] = []
+    for ticker, pos in list(state["positions"].items()):
+        try:
+            splits = yf.Ticker(ticker).splits
+        except Exception:
+            continue
+        if splits.empty:
+            continue
+        entry_ts = pd.Timestamp(pos["entry_date"])
+        if splits.index.tz is not None:
+            entry_ts = entry_ts.tz_localize(splits.index.tz)
+        recent = splits[splits.index > entry_ts]
+        last_adj = pos.get("last_split_adjusted")
+        if last_adj:
+            adj_ts = pd.Timestamp(last_adj)
+            if splits.index.tz is not None:
+                adj_ts = adj_ts.tz_localize(splits.index.tz)
+            recent = recent[recent.index > adj_ts]
+        if recent.empty:
+            continue
+        ratio = float(recent.prod())
+        old_shares = pos["shares"]
+        pos["shares"] = int(old_shares * ratio)
+        pos["entry_price"] = round(pos["entry_price"] / ratio, 2)
+        pos["last_split_adjusted"] = recent.index[-1].strftime("%Y-%m-%d")
+        events.append(
+            f"分割調整:{pos.get('name', ticker)} "
+            f"{old_shares}→{pos['shares']}股, "
+            f"成本 {pos['entry_price']}"
+        )
+    return events
 
 
 def _tw_market_signal() -> dict | None:
@@ -63,6 +105,7 @@ def process(picks: list[dict], prices: dict[str, float],
     新進的用釋出現金等分買入。
     """
     state = _load(state_path)
+    _adjust_splits(state)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     first_run = state["started"] is None
 
@@ -151,6 +194,7 @@ def process_d(picks: list[dict], prices: dict[str, float],
     state = _load(state_path)
     state.setdefault("reserve_cash", 0.0)
     state.setdefault("exp_state", "normal")
+    _adjust_splits(state)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     events: list[str] = []
 

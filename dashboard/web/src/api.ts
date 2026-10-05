@@ -12,92 +12,7 @@ export const fmtTs = (ts: string | null | undefined) => {
          `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 };
 
-export type TrackStatus = {
-  equity: number | null;
-  kill_switch: boolean | null;
-  updated_at: string | null;
-  positions: Record<string, { amount: number; entry_price: number }>;
-  risk_state: { day?: string; day_start_equity?: number; killed?: boolean };
-};
-
-export type Status = TrackStatus & {
-  futures: TrackStatus;
-  paper: TrackStatus;
-  paper_tw: {
-    equity: number | null;
-    updated_at: string | null;
-    positions_count: number;
-  };
-};
-
 export type EquityPoint = { ts: string; equity: number };
-
-export type Trade = {
-  ts: string;
-  track: "spot" | "futures";
-  symbol: string;
-  side: "buy" | "sell" | "short" | "cover";
-  amount: number;
-  price: number;
-  pnl_pct: number | null;
-};
-
-export type Mover = {
-  rank: number;
-  symbol: string;
-  price: number;
-  change_pct: number;
-  quote_volume_usdt: number;
-  sentiment?: number | null;
-  headlines?: string[];
-};
-
-export type RotationRatio = {
-  pair: string;
-  ratio: number;
-  rotation_on: boolean;
-  pct_vs_ma200: number;
-};
-
-export type WatchItem = {
-  ticker: string;
-  label: string;
-  price: number;
-  above_ma200: boolean;
-  pct_vs_ma200: number;
-  pct_to_55d_high: number;
-  status?: "watching" | "near_gate1" | "gate1_passed" | "near_trigger" | "triggered";
-  status_label?: string;
-  status_rank?: number;
-  last_trigger_date?: string | null;
-  days_since_trigger?: number | null;
-  signal_grade?: "strong" | "mid" | "weak";
-  pct_to_exit?: number;
-  since_entry_pct?: number;
-  entry_date?: string | null;
-  bar?: {
-    body_pct: number;
-    close_pos: number;
-    vol_mult: number;
-    up: boolean;
-    patterns: string[];
-  };
-};
-
-export type Scan = {
-  scanned_at: string;
-  movers: Mover[];
-  crypto_sentiment?: Record<string, number | null>;
-  fear_greed?: { value: number; label: string } | null;
-  rotation?: { ratios: RotationRatio[]; watchlist: WatchItem[] };
-};
-
-export type Backtest = {
-  symbol: string;
-  metrics: Record<string, number>;
-  n_trades: number;
-  curve: { date: string; strategy: number; benchmark: number }[];
-};
 
 export class UnauthorizedError extends Error {}
 
@@ -120,23 +35,6 @@ export const requestLogin = async (email: string) => {
 };
 export const logout = () =>
   fetch(`${BASE}/auth/logout`, { method: "POST", credentials: "include" });
-
-export type FearGreed = { value: number | null; label: string | null };
-
-export const fetchStatus = () => get<Status>("/api/status");
-export const fetchFng = () => get<FearGreed>("/api/fng");
-export const fetchEquity = () => get<EquityPoint[]>("/api/equity");
-export const fetchTrades = () => get<Trade[]>("/api/trades");
-export type RatioHistory = {
-  pair: string;
-  rotation_on: boolean;
-  history: { date: string; ratio: number; ma200: number | null }[];
-};
-
-export type Rotation = {
-  ratios: RatioHistory[];
-  watchlist: WatchItem[];
-};
 
 export type TickerSeries = {
   ticker: string;
@@ -163,20 +61,11 @@ export type ValueRow = {
   profit_margin: number | null;
   pe: number | null;
   debt_to_equity: number | null;
-  passed: boolean;          // 舊殖利率三關(保留於數據,不再作為主標記)
+  passed: boolean;
   momentum_pct?: number | null;
-  picked?: boolean;         // ✅ = 動量 TOP10 成員
-  range_pos_20d?: number;   // 20日區間位置 0~100
+  picked?: boolean;
+  range_pos_20d?: number;
   zone?: "pullback" | "mid" | "high";
-  tier?: 1 | 2;             // 美股池分層:1 精華 / 2 二線
-  sector?: string;          // 板塊類別
-};
-
-export type MomentumPick = {
-  ticker: string;
-  name: string;
-  momentum_pct: number;
-  price: number;
 };
 
 export type ValueScreenReport = {
@@ -190,7 +79,7 @@ export type ValueScreenReport = {
   fetched: number;
   rows: ValueRow[];
   momentum?: {
-    picks: MomentumPick[];
+    picks: { ticker: string; name: string; momentum_pct: number; price: number }[];
     rebalanced: boolean;
     performance: {
       since: string;
@@ -222,60 +111,18 @@ export type ValueScreenReport = {
   };
 };
 
-export type UsScreenReport = {
-  scanned_at: string;
-  universe_size: number;
-  fetched: number;
-  rows: ValueRow[];
-  spy_state: {
-    regime_on: boolean;
-    pct_vs_ma200: number;
-    heat_12m_pct: number;
-  } | null;
-};
-
 export type Quotes = {
   asof: string;
   quotes: Record<string, { price: number; today_pct: number }>;
 };
 
-export const fetchScan = () => get<Scan>("/api/scan");
-export const fetchValueScreen = () => get<ValueScreenReport>("/api/value-screen");
-export const fetchUsScreen = () => get<UsScreenReport>("/api/us-screen");
-export const fetchQuotes = (market: "us" | "tw") =>
-  get<Quotes>(`/api/quotes?market=${market}`);
-export type UsStockPaperSummary = {
-  equity: number;
-  cash: number;
-  started: string | null;
-  return_pct: number;
-  n_trades: number;
-  eligible_now: string[];
-  holdings: {
-    ticker: string; name: string; shares: number;
-    entry_price: number; price: number; pnl_pct: number;
-  }[];
-};
-
 export type PaperBooksReport = {
-  us: {
-    equity: number | null;
-    positions: Record<string, { amount: number; entry_price: number }>;
-    trades: Trade[];
-    equity_curve: EquityPoint[];
-  };
-  us_stocks: {
-    summary: UsStockPaperSummary | null;
-    trades: {
-      date: string; side: "buy" | "sell"; ticker: string; name?: string;
-      shares: number; price: number; pnl_pct: number | null;
-    }[];
-    equity_curve: EquityPoint[];
-  };
+  us: unknown;
+  us_stocks: unknown;
   tw: {
     summary: NonNullable<ValueScreenReport["paper"]> | null;
     trades: {
-      date: string; side: "buy" | "sell"; ticker: string; name?: string;
+      date: string; side: string; ticker: string; name?: string;
       shares: number; price: number; pnl_pct: number | null; note?: string;
     }[];
     equity_curve: EquityPoint[];
@@ -286,14 +133,48 @@ export type PaperBooksReport = {
       exp_state?: string;
     }) | null;
     trades: {
-      date: string; side: "buy" | "sell"; ticker: string; name?: string;
+      date: string; side: string; ticker: string; name?: string;
       shares: number; price: number; pnl_pct: number | null; note?: string;
     }[];
     equity_curve: EquityPoint[];
   };
 };
 
+export type PaperTradeRecord = {
+  date: string; side: string; ticker: string; name?: string;
+  shares: number; price: number | null; pnl_pct: number | null;
+  pnl_amt?: number; note?: string;
+};
+
+export type PaperHolding = {
+  ticker: string; name: string; shares: number;
+  entry_price: number; price: number; pnl_pct: number;
+};
+
+export type PaperTradesReport = {
+  trades: PaperTradeRecord[];
+  holdings: PaperHolding[];
+  summary: {
+    total_realized_pnl: number;
+    total_unrealized_pnl: number;
+    n_sells: number;
+    n_holdings: number;
+    win_rate: number;
+    avg_win: number;
+    avg_loss: number;
+  };
+};
+
+export const fetchPaperTrades = (book: "tw" | "tw_d") =>
+  get<PaperTradesReport>(`/api/paper/trades?book=${book}`);
+export const fetchValueScreen = () => get<ValueScreenReport>("/api/value-screen");
+export const fetchQuotes = (market: "us" | "tw") =>
+  get<Quotes>(`/api/quotes?market=${market}`);
 export const fetchPaperBooks = () => get<PaperBooksReport>("/api/paper");
+export type ChartInterval = "5m" | "15m" | "30m" | "1h" | "4h" | "1d";
+export const fetchChart = (symbol: string, interval: ChartInterval = "1d") =>
+  get<TickerSeries>(
+    `/api/chart?symbol=${encodeURIComponent(symbol)}&interval=${interval}`);
 export const fetchStarred = (market: "us" | "tw") =>
   get<{ tickers: string[] }>(`/api/starred?market=${market}`);
 export const saveStarred = async (market: "us" | "tw", tickers: string[]) => {
@@ -304,12 +185,3 @@ export const saveStarred = async (market: "us" | "tw", tickers: string[]) => {
     body: JSON.stringify({ market, tickers }),
   });
 };
-export const fetchRotation = () => get<Rotation>("/api/rotation");
-export const fetchRotationTicker = (symbol: string) =>
-  get<TickerSeries>(`/api/rotation/ticker?symbol=${encodeURIComponent(symbol)}`);
-export type ChartInterval = "5m" | "15m" | "30m" | "1h" | "4h" | "1d";
-export const fetchChart = (symbol: string, interval: ChartInterval = "1d") =>
-  get<TickerSeries>(
-    `/api/chart?symbol=${encodeURIComponent(symbol)}&interval=${interval}`);
-export const fetchBacktest = (symbol: string) =>
-  get<Backtest>(`/api/backtest?symbol=${encodeURIComponent(symbol)}`);

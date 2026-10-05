@@ -39,6 +39,7 @@ export function ValueScreen() {
 
   return (
     <>
+      <StrategyGuide />
       <h2>
         台股動量模型
         <InfoTip text="✅ = 12-1月截面動量 TOP10,剔除動量>150% 的極端拋物線(防動量崩潰,回測回撤 -40.6%→-37.7%、Sharpe 1.22→1.28)。季調倉,前瞻追蹤中逐季對帳。財報欄位為參考資訊,不參與選股" />
@@ -128,6 +129,51 @@ export function ValueScreen() {
         <TwChartDrawer ticker={selected} onClose={() => setSelected(null)} />
       )}
     </>
+  );
+}
+
+function StrategyGuide() {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="strategy-guide" open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary>📖 策略邏輯</summary>
+      <div className="strategy-content">
+        <h3>選股</h3>
+        <ul>
+          <li><strong>指標</strong>：12-1 月截面動量 = 近 252 日報酬，跳過最近 21 日（避短期反轉雜訊）</li>
+          <li><strong>篩選</strong>：動量 &gt; 150% 的極端拋物線剔除（防動量崩潰）</li>
+          <li><strong>結果</strong>：選出動量最高的 TOP 10 檔</li>
+        </ul>
+        <h3>買賣</h3>
+        <ul>
+          <li><strong>調倉頻率</strong>：每季一次（季末）</li>
+          <li><strong>留任</strong>：仍在 TOP 10 的持倉不動（不重新等權，省手續費）</li>
+          <li><strong>賣出</strong>：被踢出名單的股票全部賣出</li>
+          <li><strong>買入</strong>：新進名單的股票，用釋出現金等分買入</li>
+        </ul>
+        <h3>費用</h3>
+        <ul>
+          <li>買入 0.1425%（券商手續費）</li>
+          <li>賣出 0.4425%（手續費 + 0.3% 證交稅）</li>
+        </ul>
+        <h3>🧪 D 版額外邏輯（恐慌部署）</h3>
+        <ul>
+          <li>0050 跌破 200MA → 賣出各持倉 25% 存入預備金</li>
+          <li>0050 從 52 週高點回撤 ≥ 20% → 預備金全數加碼（恐慌部署）</li>
+          <li>0050 站回 200MA → 預備金回補，回歸正常</li>
+        </ul>
+        <h3>回測參考（2010–2026，含生存者偏差）</h3>
+        <table className="compact">
+          <thead><tr><th></th><th>CAGR</th><th>MaxDD</th><th>Sharpe</th></tr></thead>
+          <tbody>
+            <tr><td>A 動量 TOP10</td><td>35.1%</td><td>-40.6%</td><td>1.20</td></tr>
+            <tr><td>A + 200MA 濾網</td><td>37.6%</td><td>-41.3%</td><td>1.30</td></tr>
+            <tr><td>0050 B&amp;H</td><td>18.3%</td><td>-33.8%</td><td>0.98</td></tr>
+          </tbody>
+        </table>
+        <p className="muted" style={{ marginTop: 4 }}>⚠️ 生存者偏差對動量策略灌水最兇，以上為上限。紙上帳本為樣本外驗證。</p>
+      </div>
+    </details>
   );
 }
 
