@@ -167,6 +167,39 @@ export type PaperTradesReport = {
 
 export const fetchPaperTrades = (book: "tw" | "tw_d") =>
   get<PaperTradesReport>(`/api/paper/trades?book=${book}`);
+
+export type BrokerStatus = {
+  configured: boolean;
+  has_ca: boolean;
+  mode: "simulation" | "production";
+};
+
+export type BrokerPosition = {
+  code: string;
+  lots: number;
+  avg_price: number;
+  last_price: number;
+  pnl: number;
+};
+
+export type BrokerPositionsReport = {
+  positions: BrokerPosition[];
+  paper_count: number;
+  diffs: string[];
+};
+
+export const fetchBrokerStatus = () => get<BrokerStatus>("/api/broker/status");
+export const fetchBrokerPositions = async () => {
+  const res = await fetch(`${BASE}/api/broker/positions`, {
+    method: "POST", credentials: "include",
+  });
+  if (res.status === 401) throw new UnauthorizedError();
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `HTTP ${res.status}`);
+  }
+  return res.json() as Promise<BrokerPositionsReport>;
+};
 export const fetchValueScreen = () => get<ValueScreenReport>("/api/value-screen");
 export const fetchQuotes = (market: "us" | "tw") =>
   get<Quotes>(`/api/quotes?market=${market}`);
