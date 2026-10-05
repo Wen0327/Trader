@@ -123,6 +123,45 @@ class TestPlaceOrder:
                 broker.buy("INVALID", price=100, lots=1)
 
 
+# ── 零股下單 ─────────────────────────────────────────────
+
+class TestOddLotOrder:
+    def test_buy_odd_uses_odd_lot_type(self):
+        with patch("execution.shioaji_broker.sj") as mock_sj:
+            mock_sj.Shioaji.return_value = _mock_api()
+            mock_sj.Action.Buy = "Buy"
+            mock_sj.StockPriceType.LMT = "LMT"
+            mock_sj.OrderType.ROD = "ROD"
+            mock_sj.StockOrderLot.Odd = "Odd"
+            mock_sj.StockOrderCond.Cash = "Cash"
+            broker = ShioajiBroker(api_key="k", secret_key="s", simulation=True)
+            broker.api.contracts.get.return_value = _make_contract("2330")
+
+            broker.buy_odd("2330", price=580.0, shares=467)
+
+        call_kwargs = mock_sj.StockOrder.call_args[1]
+        assert call_kwargs["order_lot"] == "Odd"
+        assert call_kwargs["quantity"] == 467
+
+    def test_sell_odd_uses_odd_lot_type(self):
+        with patch("execution.shioaji_broker.sj") as mock_sj:
+            mock_sj.Shioaji.return_value = _mock_api()
+            mock_sj.Action.Sell = "Sell"
+            mock_sj.StockPriceType.LMT = "LMT"
+            mock_sj.OrderType.ROD = "ROD"
+            mock_sj.StockOrderLot.Odd = "Odd"
+            mock_sj.StockOrderCond.Cash = "Cash"
+            broker = ShioajiBroker(api_key="k", secret_key="s", simulation=True)
+            broker.api.contracts.get.return_value = _make_contract("2317")
+
+            broker.sell_odd("2317", price=250.0, shares=175)
+
+        call_kwargs = mock_sj.StockOrder.call_args[1]
+        assert call_kwargs["action"] == "Sell"
+        assert call_kwargs["order_lot"] == "Odd"
+        assert call_kwargs["quantity"] == 175
+
+
 # ── 持倉查詢 ─────────────────────────────────────────────
 
 class TestPositions:
