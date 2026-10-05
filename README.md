@@ -100,7 +100,7 @@ Dashboard 有登入認證（magic link email），只有白名單內的 email �
 
 ```bash
 # 1. clone
-git clone git@github.com:Wen0327/Trader.git
+git clone <repo-url>
 cd Trader
 
 # 2. Python 環境
@@ -128,6 +128,9 @@ cd ../..
 ### 生產部署（macOS launchd）
 
 ```bash
+# deploy/*.plist 裡的 __PROJECT_DIR__ 佔位符要先替換成實際路徑
+sed -i '' "s|__PROJECT_DIR__|$(pwd)|g" deploy/*.plist
+
 # 安裝 dashboard 服務（開機自啟、crash 自動重啟）
 cp deploy/com.trading-system.dashboard.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.trading-system.dashboard.plist
