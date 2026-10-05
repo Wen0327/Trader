@@ -124,7 +124,7 @@ def process(picks: list[dict], prices: dict[str, float],
             state["trades"].append({
                 "date": now, "side": "sell", "ticker": t,
                 "name": pos.get("name", t),
-                "shares": pos["shares"], "price": px,
+                "shares": pos["shares"], "price": round(px, 2),
                 "pnl_pct": round((px / pos["entry_price"] - 1) * 100, 2),
             })
             del state["positions"][t]
@@ -149,7 +149,7 @@ def process(picks: list[dict], prices: dict[str, float],
                 state["trades"].append({
                     "date": now, "side": "buy", "ticker": p["ticker"],
                     "name": p["name"],
-                    "shares": shares, "price": px, "pnl_pct": None,
+                    "shares": shares, "price": round(px, 2), "pnl_pct": None,
                 })
         if first_run:
             state["started"] = now
@@ -164,7 +164,7 @@ def process(picks: list[dict], prices: dict[str, float],
         holdings.append({
             "ticker": t, "name": pos.get("name", t),
             "shares": pos["shares"], "entry_price": pos["entry_price"],
-            "price": px,
+            "price": round(px, 2),
             "pnl_pct": round((px / pos["entry_price"] - 1) * 100, 2),
         })
     equity = round(state["cash"] + market_value, 0)
@@ -214,7 +214,7 @@ def process_d(picks: list[dict], prices: dict[str, float],
                 state["trades"].append({
                     "date": now, "side": "sell", "ticker": t,
                     "name": pos.get("name", t), "shares": sell_shares,
-                    "price": px,
+                    "price": round(px, 2),
                     "pnl_pct": round((px / pos["entry_price"] - 1) * 100, 2),
                     "note": "騰預備金",
                 })
@@ -250,7 +250,7 @@ def process_d(picks: list[dict], prices: dict[str, float],
                     state["trades"].append({
                         "date": now, "side": "buy", "ticker": t,
                         "name": pos.get("name", t), "shares": add,
-                        "price": px, "pnl_pct": None, "note": deploy,
+                        "price": round(px, 2), "pnl_pct": None, "note": deploy,
                     })
                 state["cash"] += cash_in  # 加碼找零回自由現金
                 state["exp_state"] = "deployed" if deploy == "恐慌部署" else "normal"
