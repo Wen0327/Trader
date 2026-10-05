@@ -96,6 +96,42 @@ class ShioajiBroker:
         logger.info("賣出 %s %d張 @ %.2f (sim=%s)", ticker, lots, price, self.simulation)
         return trade
 
+    # ── 零股下單 ─────────────────────────────────────────
+
+    def buy_odd(self, ticker: str, price: float, shares: int) -> object:
+        """零股買入(1–999 股)。"""
+        contract = self._resolve_contract(ticker)
+        order = sj.StockOrder(
+            action=sj.Action.Buy,
+            price=round(price, 2),
+            quantity=shares,
+            price_type=sj.StockPriceType.LMT,
+            order_type=sj.OrderType.ROD,
+            order_lot=sj.StockOrderLot.Odd,
+            order_cond=sj.StockOrderCond.Cash,
+            account=self.api.stock_account,
+        )
+        trade = self.api.place_order(contract, order)
+        logger.info("零股買入 %s %d股 @ %.2f (sim=%s)", ticker, shares, price, self.simulation)
+        return trade
+
+    def sell_odd(self, ticker: str, price: float, shares: int) -> object:
+        """零股賣出(1–999 股)。"""
+        contract = self._resolve_contract(ticker)
+        order = sj.StockOrder(
+            action=sj.Action.Sell,
+            price=round(price, 2),
+            quantity=shares,
+            price_type=sj.StockPriceType.LMT,
+            order_type=sj.OrderType.ROD,
+            order_lot=sj.StockOrderLot.Odd,
+            order_cond=sj.StockOrderCond.Cash,
+            account=self.api.stock_account,
+        )
+        trade = self.api.place_order(contract, order)
+        logger.info("零股賣出 %s %d股 @ %.2f (sim=%s)", ticker, shares, price, self.simulation)
+        return trade
+
     # ── 持倉查詢 ─────────────────────────────────────────
 
     def positions(self) -> dict[str, dict]:
