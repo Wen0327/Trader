@@ -7,12 +7,12 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/prophetdigits/projects/trading-system/.venv/bin/python</string>
-        <string>/Users/prophetdigits/projects/trading-system/scripts/intraday_collector.py</string>
+        <string>__PROJECT_DIR__/.venv/bin/python</string>
+        <string>__PROJECT_DIR__/scripts/intraday_collector.py</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/prophetdigits/projects/trading-system</string>
+    <string>__PROJECT_DIR__</string>
 
     <!-- 每 6 小時;merge 去重 idempotent,多跑無害。
          固定間隔而非本地時刻(時區/夏令時紀律),涵蓋台美兩市收盤 -->
@@ -22,8 +22,8 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/prophetdigits/projects/trading-system/logs/intraday.out.log</string>
+    <string>__PROJECT_DIR__/logs/intraday.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/prophetdigits/projects/trading-system/logs/intraday.err.log</string>
+    <string>__PROJECT_DIR__/logs/intraday.err.log</string>
 </dict>
 </plist>

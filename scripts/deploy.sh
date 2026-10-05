@@ -4,7 +4,7 @@
 # 此目錄的 storage/ 與 reports/,不另設部署副本。
 set -euo pipefail
 
-LIVE=/Users/prophetdigits/projects/trading-system
+LIVE="${TRADING_SYSTEM_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$LIVE"
 
 # 安全閘:只在 main 上部署;工作區有衝突時 git 會自行拒絕 pull

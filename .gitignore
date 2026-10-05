@@ -1,6 +1,8 @@
 # 環境與密鑰 — 絕對不能進版本庫
 .env
 *.key
+*.pfx
+*.p12
 
 # Python
 .venv/

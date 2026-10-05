@@ -8,7 +8,7 @@
     <!-- 只綁 127.0.0.1:對外一律走 Tailscale Funnel 的 HTTPS 反代,LAN 直連不通 -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/prophetdigits/projects/trading-system/.venv/bin/python</string>
+        <string>__PROJECT_DIR__/.venv/bin/python</string>
         <string>-m</string>
         <string>uvicorn</string>
         <string>dashboard.api:app</string>
@@ -19,7 +19,7 @@
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/prophetdigits/projects/trading-system</string>
+    <string>__PROJECT_DIR__</string>
 
     <!-- 常駐:掛掉自動重拉;部署用 launchctl kickstart -k 重啟 -->
     <key>KeepAlive</key>
@@ -28,8 +28,8 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/prophetdigits/projects/trading-system/logs/dashboard.out.log</string>
+    <string>__PROJECT_DIR__/logs/dashboard.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/prophetdigits/projects/trading-system/logs/dashboard.err.log</string>
+    <string>__PROJECT_DIR__/logs/dashboard.err.log</string>
 </dict>
 </plist>
