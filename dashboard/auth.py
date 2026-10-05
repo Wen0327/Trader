@@ -27,7 +27,7 @@ COOKIE_NAME = "trader_session"
 
 
 def _allowed_emails() -> set[str]:
-    raw = os.environ.get("ALLOWED_EMAILS", "x36352580@gmail.com")
+    raw = os.environ.get("ALLOWED_EMAILS", "")
     return {e.strip().lower() for e in raw.split(",") if e.strip()}
 
 
