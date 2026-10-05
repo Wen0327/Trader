@@ -580,6 +580,61 @@ def paper_books():
     }
 
 
+@app.get("/api/paper/trades")
+def paper_all_trades(book: str = "tw"):
+    """完整交易紀錄 + 已實現損益匯總。"""
+    if book not in ("tw", "tw_d"):
+        raise HTTPException(400, "book 須為 tw 或 tw_d")
+    path = ROOT / "storage" / ("tw_paper_state.json" if book == "tw"
+                                else "tw_paper_d_state.json")
+    state = StateStore(path).read()
+    trades = state.get("trades", [])
+
+    # 每筆賣出的實際金額損益
+    sells = []
+    buy_map: dict[str, list[dict]] = {}
+    for t in trades:
+        if t["side"] == "buy":
+            buy_map.setdefault(t["ticker"], []).append(t)
+        elif t["side"] == "sell" and t.get("pnl_pct") is not None:
+            entry = t["shares"] * t["price"] / (1 + t["pnl_pct"] / 100)
+            pnl_amt = round(t["shares"] * t["price"] - entry)
+            sells.append({**t, "pnl_amt": pnl_amt})
+
+    total_pnl = sum(s["pnl_amt"] for s in sells)
+    wins = [s for s in sells if s["pnl_amt"] > 0]
+    losses = [s for s in sells if s["pnl_amt"] <= 0]
+    win_rate = round(len(wins) / len(sells) * 100, 1) if sells else 0
+    avg_win = round(sum(s["pnl_amt"] for s in wins) / len(wins)) if wins else 0
+    avg_loss = round(sum(s["pnl_amt"] for s in losses) / len(losses)) if losses else 0
+
+    # 未實現:從最新報告拿持倉(含即時估值)
+    try:
+        latest_vs = scan_store.latest("value_screen")
+        paper_key = "paper_d" if book == "tw_d" else "paper"
+        holdings = (latest_vs.get(paper_key) or {}).get("holdings", [])
+    except FileNotFoundError:
+        holdings = []
+    unrealized_pnl = sum(
+        round(h["shares"] * (h["price"] - h["entry_price"]))
+        for h in holdings
+    )
+
+    return {
+        "trades": trades,
+        "holdings": holdings,
+        "summary": {
+            "total_realized_pnl": total_pnl,
+            "total_unrealized_pnl": unrealized_pnl,
+            "n_sells": len(sells),
+            "n_holdings": len(holdings),
+            "win_rate": win_rate,
+            "avg_win": avg_win,
+            "avg_loss": avg_loss,
+        },
+    }
+
+
 @app.get("/api/backtest")
 def backtest(symbol: str = "BTC/USDT"):
     try:

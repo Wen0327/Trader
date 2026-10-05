@@ -11,19 +11,13 @@ import { useLoad } from "../hooks/useLoad";
 export function PaperBooks() {
   const { data, error } = useLoad(fetchPaperBooks, [],
     { keepPrevious: true, refreshMs: 60_000 });
-  const [book, setBook] = useState<"us" | "us_stocks" | "tw" | "tw_d">("us");
+  const [book, setBook] = useState<"tw" | "tw_d">("tw");
   if (error) return <ErrorBox msg={error} />;
   if (!data) return <Loading />;
 
   return (
     <>
       <div className="toolbar">
-        <button className={book === "us" ? "active" : ""} onClick={() => setBook("us")}>
-          🇺🇸 QQQB Regime200
-        </button>
-        <button className={book === "us_stocks" ? "active" : ""} onClick={() => setBook("us_stocks")}>
-          🇺🇸 個股 Donchian
-        </button>
         <button className={book === "tw" ? "active" : ""} onClick={() => setBook("tw")}>
           🇹🇼 動量 TOP10
         </button>
@@ -32,24 +26,6 @@ export function PaperBooks() {
         </button>
       </div>
 
-      {book === "us" && (
-        <>
-          <h2>
-            紙上 US — QQQB
-            <InfoTip text="bot 每小時管理,按幣安公開行情成交(含手續費+滑價,無盤口深度 = 實盤上界)。全額曝險鏡像策略,供 --live 決策對帳" />
-          </h2>
-          <UsBook us={data.us} />
-        </>
-      )}
-      {book === "us_stocks" && (
-        <>
-          <h2>
-            紙上 US 個股
-            <InfoTip text="只交易「edge 閘門通過 + Donchian 訊號新觸發」的個股(現在合格:ZM/TAN)。每檔 25% 權益、最多 4 檔;既有訊號不追,等新突破 — 每日 21:00 掃描驅動" />
-          </h2>
-          <UsStocksBook b={data.us_stocks} />
-        </>
-      )}
       {book === "tw" && (
         <>
           <h2>
@@ -81,72 +57,6 @@ export function PaperBooks() {
   );
 }
 
-function UsStocksBook({ b }: { b: PaperBooksReport["us_stocks"] }) {
-  const s = b.summary;
-  if (!s) return <Empty msg="個股帳尚未開帳(等待首次每日掃描)" />;
-  return (
-    <>
-      <Cards>
-        <Card label="權益 (USD)" value={s.equity.toLocaleString()} />
-        <Card
-          label={`累積報酬(自 ${s.started ?? "—"})`}
-          value={`${s.return_pct > 0 ? "+" : ""}${s.return_pct}%`}
-          tone={s.return_pct >= 0 ? "good" : "bad"}
-        />
-        <Card label="持倉數" value={`${s.holdings.length}/4`} />
-        <Card label="合格宇宙" value={s.eligible_now.join("、") || "—"} tone="small" />
-      </Cards>
-      {s.holdings.length === 0 ? (
-        <Empty msg="空手 — 等待合格個股的新突破訊號(不追既有訊號)" />
-      ) : (
-        <table>
-          <thead>
-            <tr><th>標的</th><th>股數</th><th>進場價</th><th>現價</th><th>損益</th></tr>
-          </thead>
-          <tbody>
-            {s.holdings.map((h) => (
-              <tr key={h.ticker}>
-                <td>{h.ticker} {h.name}</td>
-                <td>{h.shares}</td>
-                <td>{h.entry_price}</td>
-                <td>{h.price}</td>
-                <td className={h.pnl_pct >= 0 ? "good" : "bad"}>
-                  {h.pnl_pct > 0 ? "+" : ""}{h.pnl_pct}%
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      <EquityCurve points={b.equity_curve} />
-      {b.trades.length > 0 && (
-        <>
-          <h2>近期交易</h2>
-          <table>
-            <thead><tr><th>日期</th><th>標的</th><th>方向</th><th>股數</th><th>價格</th><th>損益</th></tr></thead>
-            <tbody>
-              {[...b.trades].reverse().map((t, i) => (
-                <tr key={i}>
-                  <td>{t.date}</td>
-                  <td>{t.ticker} {t.name ?? ""}</td>
-                  <td className={t.side === "buy" ? "good" : "bad"}>
-                    {t.side === "buy" ? "買入" : "賣出"}
-                  </td>
-                  <td>{t.shares}</td>
-                  <td>{t.price}</td>
-                  <td className={t.pnl_pct == null ? "" : t.pnl_pct >= 0 ? "good" : "bad"}>
-                    {t.pnl_pct == null ? "—" : `${t.pnl_pct}%`}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
-    </>
-  );
-}
-
 function EquityCurve({ points }: { points: { ts: string; equity: number }[] }) {
   if (points.length < 2) return <Empty msg="權益曲線累積中(至少需兩個紀錄點)" />;
   return (
@@ -159,53 +69,6 @@ function EquityCurve({ points }: { points: { ts: string; equity: number }[] }) {
               isAnimationActive={false} />
       </LineChart>
     </ResponsiveContainer>
-  );
-}
-
-function UsBook({ us }: { us: PaperBooksReport["us"] }) {
-  const positions = Object.entries(us.positions);
-  return (
-    <>
-      <Cards>
-        <Card label="權益 (USDT)" value={us.equity?.toFixed(2) ?? "—"} />
-        <Card label="持倉數" value={String(positions.length)} />
-      </Cards>
-      {positions.length > 0 && (
-        <table>
-          <thead><tr><th>標的</th><th>數量</th><th>進場價</th></tr></thead>
-          <tbody>
-            {positions.map(([sym, p]) => (
-              <tr key={sym}><td>{sym}</td><td>{p.amount}</td><td>{p.entry_price}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      <EquityCurve points={us.equity_curve} />
-      {us.trades.length > 0 && (
-        <>
-          <h2>近期交易</h2>
-          <table>
-            <thead><tr><th>時間</th><th>標的</th><th>方向</th><th>數量</th><th>價格</th><th>損益</th></tr></thead>
-            <tbody>
-              {[...us.trades].reverse().map((t, i) => (
-                <tr key={i}>
-                  <td>{fmtTs(t.ts)}</td>
-                  <td>{t.symbol}</td>
-                  <td className={t.side === "buy" ? "good" : "bad"}>
-                    {t.side === "buy" ? "買入" : "平倉"}
-                  </td>
-                  <td>{t.amount}</td>
-                  <td>{t.price.toLocaleString()}</td>
-                  <td className={t.pnl_pct == null ? "" : t.pnl_pct >= 0 ? "good" : "bad"}>
-                    {t.pnl_pct == null ? "—" : `${t.pnl_pct.toFixed(2)}%`}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
-    </>
   );
 }
 
@@ -227,20 +90,26 @@ function TwBook({ tw }: { tw: PaperBooksReport["tw"] }) {
       {s.holdings.length > 0 && (
         <table>
           <thead>
-            <tr><th>標的</th><th>股數</th><th>進場價</th><th>現價</th><th>損益</th></tr>
+            <tr><th>標的</th><th>股數</th><th>進場價</th><th>現價</th><th>損益</th><th>金額</th></tr>
           </thead>
           <tbody>
-            {s.holdings.map((h) => (
-              <tr key={h.ticker}>
-                <td>{h.ticker.replace(/\.TWO?$/, "")} {h.name}</td>
-                <td>{h.shares.toLocaleString()}</td>
-                <td>{h.entry_price}</td>
-                <td>{h.price}</td>
-                <td className={h.pnl_pct >= 0 ? "good" : "bad"}>
-                  {h.pnl_pct > 0 ? "+" : ""}{h.pnl_pct}%
-                </td>
-              </tr>
-            ))}
+            {s.holdings.map((h) => {
+              const pnlAmt = Math.round(h.shares * (h.price - h.entry_price));
+              return (
+                <tr key={h.ticker}>
+                  <td>{h.ticker.replace(/\.TWO?$/, "")} {h.name}</td>
+                  <td>{h.shares.toLocaleString()}</td>
+                  <td>{h.entry_price}</td>
+                  <td>{h.price}</td>
+                  <td className={h.pnl_pct >= 0 ? "good" : "bad"}>
+                    {h.pnl_pct > 0 ? "+" : ""}{h.pnl_pct}%
+                  </td>
+                  <td className={pnlAmt >= 0 ? "good" : "bad"}>
+                    {pnlAmt > 0 ? "+" : ""}{pnlAmt.toLocaleString()}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
@@ -249,22 +118,30 @@ function TwBook({ tw }: { tw: PaperBooksReport["tw"] }) {
         <>
           <h2>近期交易</h2>
           <table>
-            <thead><tr><th>日期</th><th>標的</th><th>方向</th><th>股數</th><th>價格</th><th>損益</th></tr></thead>
+            <thead><tr><th>日期</th><th>標的</th><th>方向</th><th>股數</th><th>價格</th><th>損益</th><th>金額</th></tr></thead>
             <tbody>
-              {[...tw.trades].reverse().map((t, i) => (
-                <tr key={i}>
-                  <td>{t.date}</td>
-                  <td>{t.ticker.replace(/\.TWO?$/, "")} {t.name ?? ""}</td>
-                  <td className={t.side === "buy" ? "good" : "bad"}>
-                    {t.side === "buy" ? "買入" : "賣出"}
-                  </td>
-                  <td>{t.shares.toLocaleString()}</td>
-                  <td>{t.price}</td>
-                  <td className={t.pnl_pct == null ? "" : t.pnl_pct >= 0 ? "good" : "bad"}>
-                    {t.pnl_pct == null ? "—" : `${t.pnl_pct}%`}
-                  </td>
-                </tr>
-              ))}
+              {[...tw.trades].reverse().map((t, i) => {
+                const sideLabel = { buy: "買入", sell: "賣出", split: "分割" }[t.side] ?? t.side;
+                const sideTone = t.side === "buy" ? "good" : t.side === "sell" ? "bad" : "";
+                const pnlAmt = t.pnl_pct != null
+                  ? Math.round(t.shares * t.price * t.pnl_pct / (100 + t.pnl_pct))
+                  : null;
+                return (
+                  <tr key={i}>
+                    <td>{t.date}</td>
+                    <td>{t.ticker.replace(/\.TWO?$/, "")} {t.name ?? ""}{t.note ? ` (${t.note})` : ""}</td>
+                    <td className={sideTone}>{sideLabel}</td>
+                    <td>{t.shares.toLocaleString()}</td>
+                    <td>{t.price ?? "—"}</td>
+                    <td className={t.pnl_pct == null ? "" : t.pnl_pct >= 0 ? "good" : "bad"}>
+                      {t.pnl_pct == null ? "—" : `${t.pnl_pct}%`}
+                    </td>
+                    <td className={pnlAmt == null ? "" : pnlAmt >= 0 ? "good" : "bad"}>
+                      {pnlAmt == null ? "—" : `${pnlAmt > 0 ? "+" : ""}${pnlAmt.toLocaleString()}`}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </>

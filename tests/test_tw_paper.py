@@ -1,8 +1,12 @@
 """台股紙上帳本:差額換倉、費用、損益記帳。"""
 
+import json
+from unittest.mock import patch
+
+import pandas as pd
 import pytest
 
-from data.tw_paper import BUY_FEE, INITIAL_CASH, SELL_FEE, process
+from data.tw_paper import BUY_FEE, INITIAL_CASH, SELL_FEE, _adjust_splits, process
 
 
 def picks(*tickers):
@@ -71,3 +75,61 @@ class TestValuation:
         h = out["holdings"][0]
         assert h["pnl_pct"] == pytest.approx(20.0)
         assert out["equity"] > INITIAL_CASH  # +20% 遠大於買入費
+
+
+class TestSplitAdjustment:
+    @staticmethod
+    def _fake_splits(ratio: float, split_date: str = "2026-09-02"):
+        """Mock yf.Ticker(...).splits to return a single split."""
+        idx = pd.DatetimeIndex([split_date], tz="Asia/Taipei")
+        return pd.Series([ratio], index=idx, name="Stock Splits")
+
+    def test_adjusts_shares_and_entry_price(self):
+        state = {"positions": {
+            "6669.TW": {"shares": 19, "entry_price": 5040.0,
+                        "entry_date": "2026-07-10", "name": "緯穎"},
+        }}
+        with patch("data.tw_paper.yf.Ticker") as mock_ticker:
+            mock_ticker.return_value.splits = self._fake_splits(3.0)
+            events = _adjust_splits(state)
+        pos = state["positions"]["6669.TW"]
+        assert pos["shares"] == 57  # 19 * 3
+        assert pos["entry_price"] == pytest.approx(1680.0)  # 5040 / 3
+        assert pos["last_split_adjusted"] == "2026-09-02"
+        assert len(events) == 1
+
+    def test_skips_already_adjusted(self):
+        state = {"positions": {
+            "6669.TW": {"shares": 57, "entry_price": 1680.0,
+                        "entry_date": "2026-07-10", "name": "緯穎",
+                        "last_split_adjusted": "2026-09-02"},
+        }}
+        with patch("data.tw_paper.yf.Ticker") as mock_ticker:
+            mock_ticker.return_value.splits = self._fake_splits(3.0)
+            events = _adjust_splits(state)
+        assert events == []
+        assert state["positions"]["6669.TW"]["shares"] == 57  # 沒重複調整
+
+    def test_no_split_no_change(self):
+        state = {"positions": {
+            "2330.TW": {"shares": 100, "entry_price": 1000.0,
+                        "entry_date": "2026-07-10", "name": "台積電"},
+        }}
+        with patch("data.tw_paper.yf.Ticker") as mock_ticker:
+            mock_ticker.return_value.splits = pd.Series(
+                dtype=float, name="Stock Splits")
+            events = _adjust_splits(state)
+        assert events == []
+        assert state["positions"]["2330.TW"]["shares"] == 100
+
+    def test_split_before_entry_ignored(self):
+        state = {"positions": {
+            "2330.TW": {"shares": 100, "entry_price": 500.0,
+                        "entry_date": "2026-10-01", "name": "台積電"},
+        }}
+        with patch("data.tw_paper.yf.Ticker") as mock_ticker:
+            # Split happened before entry
+            mock_ticker.return_value.splits = self._fake_splits(2.0, "2026-08-01")
+            events = _adjust_splits(state)
+        assert events == []
+        assert state["positions"]["2330.TW"]["shares"] == 100
