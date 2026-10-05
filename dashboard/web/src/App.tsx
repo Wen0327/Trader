@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchMe, logout } from "./api";
+import { BrokerPage } from "./pages/BrokerPage";
 import { Login } from "./pages/Login";
 import { PaperBooks } from "./pages/PaperBooks";
 import { TradeHistory } from "./pages/TradeHistory";
@@ -10,6 +11,7 @@ const TABS = {
   台股: ValueScreen,
   帳本: PaperBooks,
   交易紀錄: TradeHistory,
+  券商: BrokerPage,
 } as const;
 type Tab = keyof typeof TABS;
 

@@ -635,6 +635,56 @@ def paper_all_trades(book: str = "tw"):
     }
 
 
+@app.get("/api/broker/status")
+def broker_status():
+    """券商連線狀態:檢查 env 是否設定、是否能登入。"""
+    import os
+    configured = bool(os.environ.get("SJ_API_KEY") and os.environ.get("SJ_SECRET_KEY"))
+    has_ca = bool(os.environ.get("SJ_CA_PATH") and os.environ.get("SJ_PERSON_ID"))
+    return {
+        "configured": configured,
+        "has_ca": has_ca,
+        "mode": "production" if has_ca else "simulation",
+    }
+
+
+@app.post("/api/broker/positions")
+def broker_positions():
+    """連線券商拉持倉 + 跟紙上帳本對帳。按需連線,用完即斷。"""
+    import os
+    try:
+        from execution.shioaji_broker import ShioajiBroker, reconcile
+    except Exception as e:
+        raise HTTPException(500, f"shioaji 模組載入失敗:{e}")
+
+    api_key = os.environ.get("SJ_API_KEY")
+    secret_key = os.environ.get("SJ_SECRET_KEY")
+    if not api_key or not secret_key:
+        raise HTTPException(400, "SJ_API_KEY / SJ_SECRET_KEY 未設定")
+
+    try:
+        broker = ShioajiBroker(
+            api_key=api_key, secret_key=secret_key, simulation=True,
+        )
+        positions = broker.positions()
+        broker.logout()
+    except Exception as e:
+        raise HTTPException(502, f"券商連線失敗:{e}")
+
+    # 對帳:跟台股紙上帳本比對
+    tw_state = StateStore(ROOT / "storage" / "tw_paper_state.json").read()
+    paper_pos = tw_state.get("positions", {})
+    diffs = reconcile(positions, paper_pos)
+
+    return {
+        "positions": [
+            {"code": code, **info} for code, info in positions.items()
+        ],
+        "paper_count": len(paper_pos),
+        "diffs": diffs,
+    }
+
+
 @app.get("/api/backtest")
 def backtest(symbol: str = "BTC/USDT"):
     try:
