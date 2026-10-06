@@ -445,7 +445,7 @@ def us_screen():
 
 
 class QuoteService:
-    """批量即時報價(Yahoo,~15 分鐘延遲),60 秒 TTL。"""
+    """批量即時報價。台股用 Shioaji(即時);US 退回 yfinance。60 秒 TTL。"""
 
     TTL = 60
 
@@ -455,11 +455,45 @@ class QuoteService:
     def quotes(self, market: str) -> dict:
         import time
 
-        import yfinance as yf
         hit = self._cache.get(market)
         if hit and time.time() - hit[0] < self.TTL:
             return hit[1]
 
+        if market == "us":
+            result = self._quotes_yfinance("us")
+        else:
+            result = self._quotes_shioaji()
+        self._cache[market] = (time.time(), result)
+        return result
+
+    def _quotes_shioaji(self) -> dict:
+        """台股即時報價:Shioaji snapshots(零延遲)。"""
+        import os
+        from data.value_screen import UNIVERSE
+        tickers = list(UNIVERSE)
+        api_key = os.environ.get("SJ_API_KEY")
+        secret_key = os.environ.get("SJ_SECRET_KEY")
+        if not api_key or not secret_key:
+            return self._quotes_yfinance("tw")  # fallback
+        try:
+            from data.shioaji_feed import ShioajiFeed
+            feed = ShioajiFeed(api_key=api_key, secret_key=secret_key)
+            raw = feed.fetch_quotes(tickers)
+            feed.logout()
+            out = {}
+            for t in tickers:
+                q = raw.get(t)
+                if q and q["price"] > 0:
+                    out[t] = {"price": q["price"], "today_pct": 0.0}
+            return {"asof": __import__("datetime").datetime.utcnow()
+                    .strftime("%Y-%m-%d %H:%M:%S"), "quotes": out,
+                    "source": "shioaji"}
+        except Exception:
+            return self._quotes_yfinance("tw")  # fallback on error
+
+    def _quotes_yfinance(self, market: str) -> dict:
+        """退回 yfinance(US 市場,或 Shioaji 失敗時)。"""
+        import yfinance as yf
         if market == "us":
             from data.us_screen import UNIVERSE
         else:
@@ -475,10 +509,9 @@ class QuoteService:
             last, prev = float(s.iloc[-1]), float(s.iloc[-2])
             out[t] = {"price": round(last, 2),
                       "today_pct": round((last / prev - 1) * 100, 2)}
-        result = {"asof": __import__("datetime").datetime.utcnow()
-                  .strftime("%Y-%m-%d %H:%M:%S"), "quotes": out}
-        self._cache[market] = (time.time(), result)
-        return result
+        return {"asof": __import__("datetime").datetime.utcnow()
+                .strftime("%Y-%m-%d %H:%M:%S"), "quotes": out,
+                "source": "yfinance"}
 
 
 quote_service = QuoteService()
