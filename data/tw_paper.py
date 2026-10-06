@@ -53,10 +53,12 @@ def _adjust_splits(state: dict) -> list[str]:
         recent = splits[splits.index > entry_ts]
         last_adj = pos.get("last_split_adjusted")
         if last_adj:
-            adj_ts = pd.Timestamp(last_adj)
+            # +1天:split 時間戳帶時區(如 09:00+08:00)，存的是日期(00:00)，
+            # 用 > 會漏過同日的 split 導致重複套用
+            adj_ts = pd.Timestamp(last_adj) + pd.Timedelta(days=1)
             if splits.index.tz is not None:
                 adj_ts = adj_ts.tz_localize(splits.index.tz)
-            recent = recent[recent.index > adj_ts]
+            recent = recent[recent.index >= adj_ts]
         if recent.empty:
             continue
         ratio = float(recent.prod())
