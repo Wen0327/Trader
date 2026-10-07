@@ -142,12 +142,25 @@ class TestFormatDiscordReport:
     def test_includes_trade_info(self):
         results = [{
             "ticker": "2330.TW", "name": "台積電", "side": "buy",
-            "shares": 1500, "lots": 1, "odd_shares": 500,
+            "shares": 1500, "price": 580.0, "pnl_pct": None,
+            "lots": 1, "odd_shares": 500,
             "status": "ok", "error": None,
         }]
         report = format_discord_report(results, [])
         assert "2330" in report
         assert "買入" in report
+        assert "870,000" in report  # 1500 × 580
+
+    def test_sell_shows_pnl(self):
+        results = [{
+            "ticker": "2317.TW", "name": "鴻海", "side": "sell",
+            "shares": 420, "price": 251.0, "pnl_pct": 5.68,
+            "lots": 0, "odd_shares": 420,
+            "status": "ok", "error": None,
+        }]
+        report = format_discord_report(results, [])
+        assert "賣出" in report
+        assert "+5.7%" in report
 
     def test_includes_diffs(self):
         report = format_discord_report([], ["2330: 券商有 1 張,帳本無"])
