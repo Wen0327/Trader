@@ -488,8 +488,9 @@ class QuoteService:
             return {"asof": __import__("datetime").datetime.utcnow()
                     .strftime("%Y-%m-%d %H:%M:%S"), "quotes": out,
                     "source": "shioaji"}
-        except Exception:
-            return self._quotes_yfinance("tw")  # fallback on error
+        except Exception as e:
+            print(f"[quotes] Shioaji 失敗({e}),退回 yfinance", flush=True)
+            return self._quotes_yfinance("tw")
 
     def _quotes_yfinance(self, market: str) -> dict:
         """退回 yfinance(US 市場,或 Shioaji 失敗時)。"""

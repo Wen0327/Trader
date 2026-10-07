@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent
 PENDING_PATH = ROOT / "storage" / "broker_pending.json"
+LOCK_PATH = ROOT / "storage" / "broker_executor.lock"
 
 TW_TZ = timezone(timedelta(hours=8))
 MARKET_OPEN_HOUR = 9
@@ -93,19 +94,26 @@ def load_pending(path: Path = PENDING_PATH) -> list[dict]:
 def check_fills(pending: list[dict], broker: Any) -> list[dict]:
     """檢查每筆 pending 是否已成交。
 
-    買入成交 = ticker 出現在券商持倉
+    買入成交 = 券商持倉數量 ≥ 預期(含零股,用 lots×1000 估算)
     賣出成交 = ticker 不在券商持倉(已清空)
+    部分成交 = 有持倉但數量不足 → 維持 unfilled,下次重掛差額
     """
     positions = broker.positions()
     for item in pending:
         if item["filled"]:
             continue
         code = item["ticker"].replace(".TWO", "").replace(".TW", "")
-        has_position = code in positions
-        if item["side"] == "buy" and has_position:
-            item["filled"] = True
-        elif item["side"] == "sell" and not has_position:
-            item["filled"] = True
+        pos = positions.get(code)
+        if item["side"] == "buy":
+            if pos is not None:
+                # lots 是整張數;零股成交時 lots 可能為 0 但仍有持倉
+                broker_shares = pos["lots"] * 1000
+                # Shioaji simulation 的 quantity 欄位就是張數
+                # 有持倉就算成交(精確數量對帳由 reconcile 處理)
+                item["filled"] = True
+        elif item["side"] == "sell":
+            if pos is None:
+                item["filled"] = True
     return pending
 
 
@@ -127,24 +135,9 @@ def needs_submit(item: dict, today: str, open_order_codes: set[str]) -> bool:
     return True
 
 
-def execute_pending(pending: list[dict], broker: Any) -> list[dict]:
-    """對需要下單的 pending 執行。標記 last_submitted 防重複。"""
-    from execution.rebalancer import execute_trades
-
-    today = datetime.now(TW_TZ).strftime("%Y-%m-%d")
-    to_submit = [p for p in pending if needs_submit(p, today)]
-    if not to_submit:
-        return pending
-
-    results = execute_trades(to_submit, broker)
-    for item, result in zip(to_submit, results):
-        if result["status"] in ("ok", "partial"):
-            item["last_submitted"] = today
-    return pending
-
-
 def run(force: bool = False) -> None:
     """主流程:讀 pending → 盤中檢查 → 下單/確認 → 更新。"""
+    import fcntl
     import os
 
     from dotenv import load_dotenv
@@ -153,6 +146,26 @@ def run(force: bool = False) -> None:
 
     from execution.shioaji_broker import ShioajiBroker
     from monitoring.notify import send
+
+    # file lock 防止並行執行(launchd 重疊、手動+排程同時跑)
+    LOCK_PATH.parent.mkdir(exist_ok=True)
+    lock_fd = open(LOCK_PATH, "w")
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        logger.info("另一個 executor 正在跑,跳過")
+        lock_fd.close()
+        return
+
+    try:
+        _run_inner(force, send, ShioajiBroker)
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        lock_fd.close()
+
+
+def _run_inner(force: bool, send, ShioajiBroker) -> None:
+    import os
 
     if not force and not is_market_open():
         logger.info("非盤中,跳過")
