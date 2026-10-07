@@ -25,6 +25,8 @@ class OrderResult(TypedDict):
     name: str
     side: str
     shares: int
+    price: float
+    pnl_pct: float | None
     lots: int
     odd_shares: int
     status: str  # "ok" | "partial" | "skipped" | "error"
@@ -111,6 +113,8 @@ def _result(t: dict, lots: int, odd: int, status: str, error: str | None) -> Ord
         "name": t.get("name", t["ticker"]),
         "side": t["side"],
         "shares": t["shares"],
+        "price": t.get("price", 0),
+        "pnl_pct": t.get("pnl_pct"),
         "lots": lots,
         "odd_shares": odd,
         "status": status,
@@ -121,28 +125,68 @@ def _result(t: dict, lots: int, odd: int, status: str, error: str | None) -> Ord
 SIDE_LABEL = {"buy": "買入", "sell": "賣出"}
 
 
-def format_discord_report(results: list[OrderResult], reconciliation: list[str]) -> str:
-    """格式化執行結果 + 對帳差異為 Discord 訊息。"""
+def format_discord_report(
+    results: list[OrderResult],
+    reconciliation: list[str],
+    paper_holdings: dict | None = None,
+) -> str:
+    """格式化執行結果 + 對帳差異為 Discord 訊息。
+
+    paper_holdings: tw_paper_state 的 positions dict,用來算賣出損益。
+    """
     lines = ["## 🔄 券商調倉執行"]
 
     if not results:
         lines.append("無交易需執行")
     else:
+        total_buy = 0
+        total_sell = 0
+        total_pnl = 0
+        sells_detail = []
+        buys_detail = []
+
         for r in results:
             side = SIDE_LABEL.get(r["side"], r["side"])
             status = {"ok": "✅", "partial": "⚠️", "skipped": "⏭️", "error": "❌"}[r["status"]]
-            detail = f"{r['lots']}張"
-            if r["odd_shares"]:
-                detail += f"+{r['odd_shares']}股"
-            line = f"{status} {side} {r['ticker']} {r['name']} {detail}"
+            amount = round(r["shares"] * r["price"])
+
+            line = f"{status} {side} {r['ticker'].replace('.TW','').replace('.TWO','')} {r['name']}"
+            line += f"  {r['shares']:,}股  ${amount:,}"
+
+            if r["side"] == "sell" and r.get("pnl_pct") is not None:
+                pnl_amt = round(r["shares"] * r["price"] * r["pnl_pct"] / (100 + r["pnl_pct"]))
+                line += f"  ({r['pnl_pct']:+.1f}% / {pnl_amt:+,})"
+                total_pnl += pnl_amt
+                total_sell += amount
+                sells_detail.append(line)
+            elif r["side"] == "buy":
+                total_buy += amount
+                buys_detail.append(line)
+            else:
+                buys_detail.append(line)
+
             if r["error"]:
-                line += f" — {r['error']}"
-            lines.append(line)
+                line += f"\n  ⚠️ {r['error']}"
+
+        if sells_detail:
+            lines.append("**賣出**")
+            lines.extend(sells_detail)
+        if buys_detail:
+            lines.append("**買入**")
+            lines.extend(buys_detail)
+
+        lines.append("")
+        if total_sell:
+            lines.append(f"賣出總額: ${total_sell:,}")
+        if total_buy:
+            lines.append(f"買入總額: ${total_buy:,}")
+        if total_pnl:
+            lines.append(f"已實現損益: {total_pnl:+,}")
 
     if reconciliation:
         lines.append("\n⚠️ 對帳差異:")
         lines.extend(f"  {d}" for d in reconciliation)
     else:
-        lines.append("\n✅ 對帳:券商 ≡ 帳本")
+        lines.append("✅ 對帳:券商 ≡ 帳本")
 
     return "\n".join(lines)
