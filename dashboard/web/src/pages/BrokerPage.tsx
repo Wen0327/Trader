@@ -59,7 +59,8 @@ function PendingPanel({ data }: { data: BrokerPendingReport }) {
         </thead>
         <tbody>
           {data.items.map((item, i) => {
-            const amount = Math.round(item.shares * item.price);
+            const price = item.price ?? 0;
+            const amount = Math.round(item.shares * price);
             return (
               <tr key={i}>
                 <td>{item.filled ? "✅" : "⏳"}</td>
@@ -68,8 +69,8 @@ function PendingPanel({ data }: { data: BrokerPendingReport }) {
                 </td>
                 <td>{item.ticker.replace(/\.TWO?$/, "")} {item.name}</td>
                 <td>{item.shares.toLocaleString()}</td>
-                <td>{item.price.toLocaleString()}</td>
-                <td>${amount.toLocaleString()}</td>
+                <td>{price ? price.toLocaleString() : "—"}</td>
+                <td>{price ? `$${amount.toLocaleString()}` : "—"}</td>
                 <td className="muted">{item.last_submitted ?? "—"}</td>
               </tr>
             );

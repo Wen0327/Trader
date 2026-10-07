@@ -148,10 +148,11 @@ def format_discord_report(
         for r in results:
             side = SIDE_LABEL.get(r["side"], r["side"])
             status = {"ok": "✅", "partial": "⚠️", "skipped": "⏭️", "error": "❌"}[r["status"]]
-            amount = round(r["shares"] * r["price"])
+            price = r["price"] or 0
+            amount = round(r["shares"] * price)
 
             line = f"{status} {side} {r['ticker'].replace('.TW','').replace('.TWO','')} {r['name']}"
-            line += f"  {r['shares']:,}股 @{r['price']:,.1f}  ${amount:,}"
+            line += f"  {r['shares']:,}股 @{price:,.1f}  ${amount:,}"
 
             if r["side"] == "sell" and r.get("pnl_pct") is not None:
                 pnl_amt = round(r["shares"] * r["price"] * r["pnl_pct"] / (100 + r["pnl_pct"]))
