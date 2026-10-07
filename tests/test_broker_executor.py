@@ -10,7 +10,9 @@ from execution.broker_executor import (
     MARKET_OPEN_HOUR,
     check_fills,
     is_market_open,
+    is_trading_day,
     load_pending,
+    needs_submit,
     pending_from_paper_trades,
     save_pending,
 )
@@ -130,3 +132,66 @@ class TestCheckFills:
         ]
         updated = check_fills(pending, broker)
         assert updated[0]["filled"] is True
+
+
+# ── 重複下單防護 ─────────────────────────────────────────
+
+class TestNeedsSubmit:
+    def test_unfilled_no_open_order(self):
+        item = {"ticker": "2330.TW", "side": "buy", "shares": 467,
+                "price": 580.0, "filled": False, "last_submitted": None}
+        assert needs_submit(item, "2026-10-07", set()) is True
+
+    def test_already_filled(self):
+        item = {"ticker": "2330.TW", "side": "buy", "shares": 467,
+                "price": 580.0, "filled": True, "last_submitted": None}
+        assert needs_submit(item, "2026-10-07", set()) is False
+
+    def test_has_open_order_in_broker(self):
+        """券商已有該股掛單 → 不重掛。"""
+        item = {"ticker": "2330.TW", "side": "buy", "shares": 467,
+                "price": 580.0, "filled": False, "last_submitted": None}
+        assert needs_submit(item, "2026-10-07", {"2330"}) is False
+
+    def test_submitted_today_already(self):
+        """今天已經掛過 → 不重掛。"""
+        item = {"ticker": "2330.TW", "side": "buy", "shares": 467,
+                "price": 580.0, "filled": False, "last_submitted": "2026-10-07"}
+        assert needs_submit(item, "2026-10-07", set()) is False
+
+    def test_submitted_yesterday_resubmits(self):
+        """昨天掛的今天過期了 → 重掛。"""
+        item = {"ticker": "2330.TW", "side": "buy", "shares": 467,
+                "price": 580.0, "filled": False, "last_submitted": "2026-10-06"}
+        assert needs_submit(item, "2026-10-07", set()) is True
+
+    def test_two_suffix_matches_open_order(self):
+        """上櫃股 .TWO 後綴要正確對應券商的純數字代號。"""
+        item = {"ticker": "3529.TWO", "side": "buy", "shares": 100,
+                "price": 800.0, "filled": False, "last_submitted": None}
+        assert needs_submit(item, "2026-10-07", {"3529"}) is False
+
+
+# ── 假日偵測 ─────────────────────────────────────────────
+
+class TestIsTradingDay:
+    def test_has_volume_is_trading_day(self):
+        broker = MagicMock()
+        snap = MagicMock()
+        snap.total_volume = 5000
+        broker.api.contracts.get.return_value = MagicMock()
+        broker.api.snapshots.return_value = [snap]
+        assert is_trading_day(broker) is True
+
+    def test_zero_volume_is_holiday(self):
+        broker = MagicMock()
+        snap = MagicMock()
+        snap.total_volume = 0
+        broker.api.contracts.get.return_value = MagicMock()
+        broker.api.snapshots.return_value = [snap]
+        assert is_trading_day(broker) is False
+
+    def test_error_defaults_to_open(self):
+        broker = MagicMock()
+        broker.api.contracts.get.side_effect = Exception("fail")
+        assert is_trading_day(broker) is True

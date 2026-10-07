@@ -3,8 +3,11 @@
 設計:
 - value_screener.py 調倉後寫入 pending 清單(storage/broker_pending.json)
 - 本腳本在盤中執行:讀 pending → 下單 → 確認成交 → 更新 pending
-- 全部成交後清除 pending;未成交的下次執行時重掛
+- 全部成交後清除 pending;未成交的下一個交易日重掛
 - 可由 launchd 每 30 分鐘跑一次,或手動觸發
+
+防重複下單:每筆 pending 記錄 last_submitted 日期,同一天不重掛。
+假日檢查:用 Shioaji snapshot 偵測(volume=0 = 休市)。
 
 用法:
   .venv/bin/python -m execution.broker_executor          # 自動判斷盤中
@@ -31,7 +34,7 @@ MARKET_CLOSE_MINUTE = 30
 
 
 def is_market_open(now: datetime | None = None) -> bool:
-    """台股盤中:週一~五 9:00~13:30 TST。"""
+    """台股盤中:週一~五 9:00~13:30 TST。不含假日檢查(需另用 is_trading_day)。"""
     if now is None:
         now = datetime.now(TW_TZ)
     else:
@@ -40,6 +43,23 @@ def is_market_open(now: datetime | None = None) -> bool:
         return False
     t = now.hour * 60 + now.minute
     return MARKET_OPEN_HOUR * 60 <= t < MARKET_CLOSE_HOUR * 60 + MARKET_CLOSE_MINUTE
+
+
+def is_trading_day(broker: Any) -> bool:
+    """用 Shioaji snapshot 偵測今天是否為交易日(排除國定假日)。
+
+    抓 0050 的即時快照,volume > 0 表示有交易 = 今天有開盤。
+    """
+    try:
+        contract = broker.api.contracts.get("0050")
+        if contract is None:
+            return True  # 查不到就假設有開盤
+        snapshots = broker.api.snapshots([contract])
+        if snapshots and snapshots[0].total_volume > 0:
+            return True
+        return False
+    except Exception:
+        return True  # 出錯就假設有開盤,讓後續邏輯自己處理
 
 
 def pending_from_paper_trades(trades: list[dict]) -> list[dict]:
@@ -52,6 +72,7 @@ def pending_from_paper_trades(trades: list[dict]) -> list[dict]:
             "shares": t["shares"],
             "price": t["price"],
             "filled": False,
+            "last_submitted": None,
         }
         for t in trades
         if t["side"] in ("buy", "sell")
@@ -88,19 +109,37 @@ def check_fills(pending: list[dict], broker: Any) -> list[dict]:
     return pending
 
 
-def execute_pending(pending: list[dict], broker: Any) -> list[dict]:
-    """對未成交的 pending 下單。回傳更新後的 pending。"""
-    from execution.rebalancer import execute_trades, split_lots
+def needs_submit(item: dict, today: str, open_order_codes: set[str]) -> bool:
+    """判斷這筆 pending 是否需要今天下單。
 
-    unfilled = [p for p in pending if not p["filled"]]
-    if not unfilled:
+    - 已成交 → 不需要
+    - 券商已有該股的未成交委託 → 不需要(避免重複掛單)
+    - 今天已經掛過且券商沒退單 → 不需要
+    - 其他 → 需要
+    """
+    if item["filled"]:
+        return False
+    code = item["ticker"].replace(".TWO", "").replace(".TW", "")
+    if code in open_order_codes:
+        return False  # 券商已有掛單,不重複
+    if item.get("last_submitted") == today:
+        return False
+    return True
+
+
+def execute_pending(pending: list[dict], broker: Any) -> list[dict]:
+    """對需要下單的 pending 執行。標記 last_submitted 防重複。"""
+    from execution.rebalancer import execute_trades
+
+    today = datetime.now(TW_TZ).strftime("%Y-%m-%d")
+    to_submit = [p for p in pending if needs_submit(p, today)]
+    if not to_submit:
         return pending
 
-    results = execute_trades(unfilled, broker)
-    # 標記成功送單的(不代表成交,只是委託送出)
-    for item, result in zip(unfilled, results):
+    results = execute_trades(to_submit, broker)
+    for item, result in zip(to_submit, results):
         if result["status"] in ("ok", "partial"):
-            item["submitted"] = True
+            item["last_submitted"] = today
     return pending
 
 
@@ -146,20 +185,36 @@ def run(force: bool = False) -> None:
     )
 
     try:
+        # 0. 假日檢查:今天有沒有開盤
+        if not force and not is_trading_day(broker):
+            logger.info("今天非交易日(假日),跳過")
+            return
+
         # 1. 先確認之前的單有沒有成交
         pending = check_fills(pending, broker)
 
-        # 2. 未成交的重新下單
-        still_unfilled = [p for p in pending if not p["filled"]]
-        if still_unfilled:
-            from execution.rebalancer import execute_trades, format_discord_report
-            from execution.shioaji_broker import reconcile
+        # 2. 查券商當前掛單,避免重複下單
+        open_orders = broker.open_orders()
+        open_codes = {o["code"] for o in open_orders}
+        if open_codes:
+            logger.info("券商尚有 %d 筆未成交委託: %s", len(open_orders),
+                        ", ".join(open_codes))
 
-            results = execute_trades(still_unfilled, broker)
+        today = datetime.now(TW_TZ).strftime("%Y-%m-%d")
+        to_submit = [p for p in pending if needs_submit(p, today, open_codes)]
+        if to_submit:
+            from execution.rebalancer import execute_trades
+
+            results = execute_trades(to_submit, broker)
             n_ok = sum(1 for r in results if r["status"] == "ok")
             n_err = sum(1 for r in results if r["status"] == "error")
-            logger.info("下單 %d 筆,成功 %d,失敗 %d", len(results), n_ok, n_err)
 
+            # 標記今天已掛單
+            for item, result in zip(to_submit, results):
+                if result["status"] in ("ok", "partial"):
+                    item["last_submitted"] = today
+
+            logger.info("下單 %d 筆,成功 %d,失敗 %d", len(results), n_ok, n_err)
             if n_err > 0:
                 send(f"⚠️ 調倉下單:{n_ok} 成功 / {n_err} 失敗,待重試")
 
@@ -169,9 +224,8 @@ def run(force: bool = False) -> None:
 
         all_filled = all(p["filled"] for p in pending)
         if all_filled:
-            # 全部成交 → 對帳 + 清除
-            from execution.shioaji_broker import reconcile
             from data.tw_paper import STATE_PATH
+            from execution.shioaji_broker import reconcile
 
             broker_pos = broker.positions()
             paper_pos = json.loads(STATE_PATH.read_text())["positions"]
@@ -186,7 +240,7 @@ def run(force: bool = False) -> None:
             logger.info("全部成交,pending 已清除")
         else:
             n_left = sum(1 for p in pending if not p["filled"])
-            logger.info("尚有 %d 筆未成交,下次盤中繼續", n_left)
+            logger.info("尚有 %d 筆未成交,下一交易日繼續", n_left)
 
     finally:
         broker.logout()
