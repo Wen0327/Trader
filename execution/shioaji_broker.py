@@ -140,7 +140,7 @@ class ShioajiBroker:
         return {
             p.code: {
                 "lots": p.quantity,
-                "avg_price": float(p.avg_price),
+                "avg_price": float(p.price),  # SDK 欄位名為 price
                 "last_price": float(p.last_price),
                 "pnl": float(p.pnl),
             }

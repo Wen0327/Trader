@@ -188,7 +188,22 @@ export type BrokerPositionsReport = {
   diffs: string[];
 };
 
+export type BrokerPendingItem = {
+  ticker: string; name: string; side: string;
+  shares: number; price: number; filled: boolean;
+  last_submitted: string | null;
+};
+
+export type BrokerPendingReport = {
+  items: BrokerPendingItem[];
+  n_total: number;
+  n_filled: number;
+  n_unfilled: number;
+  all_done: boolean;
+};
+
 export const fetchBrokerStatus = () => get<BrokerStatus>("/api/broker/status");
+export const fetchBrokerPending = () => get<BrokerPendingReport>("/api/broker/pending");
 export const fetchBrokerPositions = async () => {
   const res = await fetch(`${BASE}/api/broker/positions`, {
     method: "POST", credentials: "include",

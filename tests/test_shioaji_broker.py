@@ -31,7 +31,7 @@ def _make_position(code: str, quantity: int, avg_price: float, last_price: float
     p = MagicMock()
     p.code = code
     p.quantity = quantity
-    p.avg_price = avg_price
+    p.price = avg_price  # SDK 欄位名為 price
     p.last_price = last_price
     p.pnl = round((last_price - avg_price) * quantity * 1000, 2)
     return p

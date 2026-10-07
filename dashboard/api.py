@@ -668,6 +668,22 @@ def paper_all_trades(book: str = "tw"):
     }
 
 
+@app.get("/api/broker/pending")
+def broker_pending():
+    """Pending 調倉狀態:等待執行的交易。"""
+    from execution.broker_executor import load_pending
+    pending = load_pending()
+    n_filled = sum(1 for p in pending if p["filled"])
+    n_total = len(pending)
+    return {
+        "items": pending,
+        "n_total": n_total,
+        "n_filled": n_filled,
+        "n_unfilled": n_total - n_filled,
+        "all_done": n_total > 0 and n_filled == n_total,
+    }
+
+
 @app.get("/api/broker/status")
 def broker_status():
     """券商連線狀態:檢查 env 是否設定、是否能登入。"""

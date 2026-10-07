@@ -151,7 +151,7 @@ def format_discord_report(
             amount = round(r["shares"] * r["price"])
 
             line = f"{status} {side} {r['ticker'].replace('.TW','').replace('.TWO','')} {r['name']}"
-            line += f"  {r['shares']:,}股  ${amount:,}"
+            line += f"  {r['shares']:,}股 @{r['price']:,.1f}  ${amount:,}"
 
             if r["side"] == "sell" and r.get("pnl_pct") is not None:
                 pnl_amt = round(r["shares"] * r["price"] * r["pnl_pct"] / (100 + r["pnl_pct"]))
