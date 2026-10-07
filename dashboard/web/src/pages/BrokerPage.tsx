@@ -1,12 +1,13 @@
 import { useState } from "react";
-import type { BrokerPositionsReport } from "../api";
-import { fetchBrokerPositions, fetchBrokerStatus } from "../api";
+import type { BrokerPendingReport, BrokerPositionsReport } from "../api";
+import { fetchBrokerPending, fetchBrokerPositions, fetchBrokerStatus } from "../api";
 import { Card, Cards } from "../components/Card";
 import { Empty, ErrorBox, InfoTip, Loading } from "../components/Feedback";
 import { useLoad } from "../hooks/useLoad";
 
 export function BrokerPage() {
   const status = useLoad(fetchBrokerStatus);
+  const pending = useLoad(fetchBrokerPending, [], { keepPrevious: true, refreshMs: 60_000 });
 
   if (status.error) return <ErrorBox msg={status.error} />;
   if (!status.data) return <Loading />;
@@ -28,9 +29,53 @@ export function BrokerPage() {
           tone="small" />
       </Cards>
 
+      {pending.data && pending.data.n_total > 0 && (
+        <PendingPanel data={pending.data} />
+      )}
+
       {s.configured ? <PositionsPanel /> : (
         <Empty msg="請在 .env 設定 SJ_API_KEY 和 SJ_SECRET_KEY" />
       )}
+    </>
+  );
+}
+
+function PendingPanel({ data }: { data: BrokerPendingReport }) {
+  return (
+    <>
+      <h2>
+        調倉執行進度
+        <InfoTip text="週掃描產生的調倉委託。executor 每 30 分鐘盤中執行，全部成交後自動清除。" />
+      </h2>
+      <Cards>
+        <Card label="總筆數" value={String(data.n_total)} />
+        <Card label="已成交" value={String(data.n_filled)} tone="good" />
+        <Card label="待執行" value={String(data.n_unfilled)}
+          tone={data.n_unfilled > 0 ? "bad" : "good"} />
+      </Cards>
+      <table>
+        <thead>
+          <tr><th>狀態</th><th>方向</th><th>標的</th><th>股數</th><th>價格</th><th>金額</th><th>最後下單</th></tr>
+        </thead>
+        <tbody>
+          {data.items.map((item, i) => {
+            const amount = Math.round(item.shares * item.price);
+            return (
+              <tr key={i}>
+                <td>{item.filled ? "✅" : "⏳"}</td>
+                <td className={item.side === "buy" ? "good" : "bad"}>
+                  {item.side === "buy" ? "買入" : "賣出"}
+                </td>
+                <td>{item.ticker.replace(/\.TWO?$/, "")} {item.name}</td>
+                <td>{item.shares.toLocaleString()}</td>
+                <td>{item.price.toLocaleString()}</td>
+                <td>${amount.toLocaleString()}</td>
+                <td className="muted">{item.last_submitted ?? "—"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </>
   );
 }

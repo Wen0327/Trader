@@ -149,6 +149,7 @@ class TestFormatDiscordReport:
         report = format_discord_report(results, [])
         assert "2330" in report
         assert "買入" in report
+        assert "@580" in report      # 單價
         assert "870,000" in report  # 1500 × 580
 
     def test_sell_shows_pnl(self):
