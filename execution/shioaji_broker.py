@@ -147,6 +147,28 @@ class ShioajiBroker:
             for p in raw
         }
 
+    # ── 委託查詢 ─────────────────────────────────────────
+
+    def open_orders(self) -> list[dict]:
+        """回傳今日尚未成交的委託(Submitted / PartFilled)。"""
+        self.api.update_status(self.api.stock_account)
+        trades = self.api.list_trades()
+        result = []
+        for t in trades:
+            status = str(t.status.status)
+            if "Filled" in status and "Part" not in status:
+                continue  # 已全部成交
+            if "Cancel" in status or "Fail" in status:
+                continue
+            result.append({
+                "code": t.contract.code,
+                "action": str(t.order.action),
+                "quantity": t.order.quantity,
+                "price": t.order.price,
+                "status": status,
+            })
+        return result
+
     # ── 清理 ─────────────────────────────────────────────
 
     def logout(self) -> None:
