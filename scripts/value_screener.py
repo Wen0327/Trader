@@ -58,35 +58,20 @@ if __name__ == "__main__":
         send("\n".join(result["paper_d"]["events"]))
 
     # ── 券商同步(opt-in:EXECUTE_BROKER=1)─────────────────
+    # 調倉時寫入 pending 清單,由 broker_executor 在盤中執行
     import os
     if os.environ.get("EXECUTE_BROKER") == "1" and rebalanced:
         from data.tw_paper import STATE_PATH
-        from execution.rebalancer import (execute_trades, extract_today_trades,
-                                          format_discord_report)
-        from execution.shioaji_broker import ShioajiBroker, reconcile
+        from execution.broker_executor import (PENDING_PATH, pending_from_paper_trades,
+                                               save_pending)
+        from execution.rebalancer import extract_today_trades
 
         trades = extract_today_trades(STATE_PATH)
         if trades:
-            broker = ShioajiBroker(
-                api_key=os.environ["SJ_API_KEY"],
-                secret_key=os.environ["SJ_SECRET_KEY"],
-                simulation=os.environ.get("SJ_SIMULATION", "1") == "1",
-                ca_path=os.environ.get("SJ_CA_PATH"),
-                ca_passwd=os.environ.get("SJ_CA_PASSWD"),
-                person_id=os.environ.get("SJ_PERSON_ID"),
-            )
-            try:
-                results = execute_trades(trades, broker)
-                broker_pos = broker.positions()
-                paper_pos = json.loads(STATE_PATH.read_text())["positions"]
-                diffs = reconcile(broker_pos, paper_pos)
-                send(format_discord_report(results, diffs))
-                result["broker_sync"] = {"executed": len(results), "diffs": diffs}
-            except Exception as e:
-                send(f"❌ 券商同步失敗:{e}")
-                result["broker_sync"] = {"error": str(e)}
-            finally:
-                broker.logout()
+            pending = pending_from_paper_trades(trades)
+            save_pending(pending)
+            send(f"📋 調倉 pending 已建立({len(pending)} 筆),等盤中執行")
+            result["broker_sync"] = {"pending": len(pending)}
 
     m = result["momentum"]
     picked_rows = [r for r in result["rows"] if r["picked"]]
