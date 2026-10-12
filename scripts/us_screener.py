@@ -56,11 +56,11 @@ if __name__ == "__main__":
                      f"{s['pct_vs_ma200']:+}%・近12月 {s['heat_12m_pct']:+.0f}%")
     zone_mark = {"pullback": "🟢", "mid": "⚪", "high": "🔴"}
     top = [r for r in rows if r.get("momentum_pct") is not None][:15]
-    trows = ["代號    名稱          動量     位置"]
+    trows = ["代號    名稱          位置"]
     for r in top:
         z = zone_mark.get(r.get("zone", ""), " ")
-        trows.append(f"{r['ticker']:<7}{r['name']:　<7}"
-                     f"{r['momentum_pct']:>+7.1f}%  {z}{r.get('range_pos_20d', '—')}%")
+        pos = r.get("range_pos_20d", "—")
+        trows.append(f"{r['ticker']:<7}{r['name']:　<7}  {z}{pos}%")
     lines.append("```\n" + "\n".join(trows) + "\n```")
-    lines.append("> 研究瀏覽,無模型選股(美股動量驗證未過)")
+    lines.append("> 研究瀏覽,無模型選股")
     send("\n".join(lines))
